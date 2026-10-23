@@ -102,6 +102,47 @@ try {
   assert.equal(await page.locator("#firstRunGuide").isVisible(), false);
   await page.reload();
   assert.equal(await page.locator("#firstRunGuide").isVisible(), false);
+  await page.locator("#exportButton").click();
+  assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth), true);
+  await page.screenshot({ path: path.join(tmpdir(), "password-vault-0.1-quick-unlock.png") });
+  await page.locator("#languageSelect").selectOption("en");
+  assert.equal(await page.locator("#quickUnlockPanel strong").textContent(), "Quick unlock");
+  assert.match(await page.locator("#quickUnlockPanel p").textContent(), /local credential, account passkey, or security key/);
+  await page.locator("#languageSelect").selectOption("zh-CN");
+  await page.evaluate(() => {
+    const prf = new Uint8Array(32).fill(17).buffer;
+    const credential = { rawId: new Uint8Array(32).fill(23),
+      getClientExtensionResults: () => ({ prf: { enabled: true, results: { first: prf } } }) };
+    Object.defineProperty(navigator, "credentials", { configurable: true, value: {
+      create: async ({ publicKey }) => { window.quickUnlockOptions = publicKey; return credential; },
+      get: async () => credential
+    } });
+  });
+  await page.locator("#enableQuickUnlock").click();
+  await page.waitForFunction(() => !document.getElementById("disableQuickUnlock").hidden ||
+    document.getElementById("notice").dataset.tone === "error");
+  assert.equal(await page.locator("#disableQuickUnlock").isVisible(), true,
+    await page.locator("#notice").textContent());
+  assert.deepEqual(await page.evaluate(() => ({
+    attachment: window.quickUnlockOptions.authenticatorSelection.authenticatorAttachment,
+    residentKey: window.quickUnlockOptions.authenticatorSelection.residentKey,
+    verification: window.quickUnlockOptions.authenticatorSelection.userVerification
+  })), { attachment: undefined, residentKey: "preferred", verification: "required" });
+  assert.equal((await page.evaluate(() => browser.runtime.sendMessage({ type: "getState" }))).quickUnlock, true);
+  await page.locator("#lockButton").click();
+  await page.reload();
+  await page.evaluate(() => Object.defineProperty(navigator, "credentials", { configurable: true, value: undefined }));
+  await page.locator("#quickUnlockButton").click();
+  assert.match(await page.locator("#notice").textContent(), /输入主密码/);
+  await page.evaluate(() => {
+    const prf = new Uint8Array(32).fill(17).buffer;
+    Object.defineProperty(navigator, "credentials", { configurable: true, value: {
+      get: async () => ({ getClientExtensionResults: () => ({ prf: { results: { first: prf } } }) })
+    } });
+  });
+  await page.locator("#quickUnlockButton").click();
+  assert.equal((await page.evaluate(() => browser.runtime.sendMessage({ type: "getState" }))).mode, "unlocked");
+  await page.reload();
   const saved = await page.evaluate(() => browser.runtime.sendMessage({
     type: "saveEntry", entry: { name: "Example", site: "example.com", username: "alice",
       password: "extension-secret-test" }
@@ -146,6 +187,36 @@ try {
   const token = (await readFile(path.join(directory, "access-token"), "utf8")).trim();
   const remote = await fetch(`${url}/v1/vault`, { headers: { Authorization: `Bearer ${token}` } });
   assert.equal((await remote.json()).revision, 1);
+  async function waitForRemoteEntries(revision, matches) {
+    for (let attempt = 0; attempt < 60; attempt++) {
+      const response = await fetch(`${url}/v1/vault`, { headers: { Authorization: `Bearer ${token}` } });
+      const data = await response.json();
+      if (data.revision >= revision) {
+        const entries = await page.evaluate(async (record) =>
+          (await PasswordCrypto.openRecord("long master password for extension test", record)).value.entries,
+        data.record);
+        if (matches(entries)) return entries;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+    throw new Error(`Server did not receive automatic vault update ${revision}`);
+  }
+  await page.locator("#entryList .entry-card").filter({ hasText: "example.com" }).getByText("编辑").click();
+  await page.locator("#entryPassword").fill("updated-extension-secret-test");
+  await page.locator("#entryForm button[type=submit]").click();
+  await waitForRemoteEntries(2, (entries) => entries.some((entry) =>
+    entry.site === "example.com" && entry.password === "updated-extension-secret-test"));
+  await page.locator("#addButton").click();
+  await page.locator("#entryName").fill("Temporary");
+  await page.locator("#entrySite").fill("temporary.example");
+  await page.locator("#entryUsername").fill("test");
+  await page.locator("#entryPassword").fill("temporary-secret-test");
+  await page.locator("#entryForm button[type=submit]").click();
+  await waitForRemoteEntries(3, (entries) => entries.some((entry) => entry.site === "temporary.example"));
+  page.once("dialog", (dialog) => dialog.accept());
+  await page.locator("#entryList .entry-card").filter({ hasText: "temporary.example" }).getByText("删除").click();
+  await waitForRemoteEntries(4, (entries) => !entries.some((entry) => entry.site === "temporary.example"));
+  assert.equal((await page.evaluate(() => browser.runtime.sendMessage({ type: "getSyncState" }))).status.kind, "ok");
   const stored = await page.evaluate(() => browser.storage.local.get("vaultRecord"));
   assert(!JSON.stringify(stored).includes("extension-secret-test"));
   const vaultFile = (await page.evaluate(() => browser.runtime.sendMessage({ type: "exportVault" }))).record;

@@ -15,6 +15,7 @@ const PENDING_LOGIN_LIFETIME = 10 * 60 * 1000;
 let session = { key: null, vault: null, record: null, ephemeral: false, source: "local", lastActivity: 0, id: null };
 let sessionReady;
 let requestQueue = Promise.resolve();
+let autoSyncRequested = false;
 
 async function storedRecord() {
   const result = await extensionApi.storage.local.get("vaultRecord");
@@ -137,6 +138,7 @@ async function persistVault() {
   else await saveSession();
   if (await scheduleAutoSync()) {
     await setSyncStatus("pending", "本机更改待自动同步");
+    autoSyncRequested = true;
   }
   await notifySharedPages();
 }
@@ -800,8 +802,8 @@ async function handleMessage(message, sender) {
     }
     case "enableQuickUnlock": {
       requireUnlocked();
-      if (session.ephemeral) throw new Error("便携模式不能开启设备验证解锁");
-      if (!message.credentialId || !message.prfSalt || !message.prfResult) throw new Error("设备验证数据不完整");
+      if (session.ephemeral) throw new Error("临时使用不能开启快捷解锁");
+      if (!message.credentialId || !message.prfSalt || !message.prfResult) throw new Error("快捷解锁数据不完整");
       const wrapped = await PasswordCrypto.encryptWithKey(
         await PasswordCrypto.prfKey(message.prfResult),
         { key: await PasswordCrypto.exportKey(session.key) }
@@ -830,7 +832,7 @@ async function handleMessage(message, sender) {
     case "quickUnlock": {
       const record = await storedRecord();
       const quick = (await extensionApi.storage.local.get("quickUnlock")).quickUnlock;
-      if (!record || !quick || quick.salt !== record.salt) throw new Error("设备验证解锁未启用");
+      if (!record || !quick || quick.salt !== record.salt) throw new Error("快捷解锁未启用");
       try {
         const wrapped = await PasswordCrypto.decryptWithKey(
           await PasswordCrypto.prfKey(message.prfResult), quick
@@ -841,7 +843,7 @@ async function handleMessage(message, sender) {
         await openSession({ key, value: vault }, record);
         return { mode: "unlocked", ephemeral: false };
       } catch {
-        throw new Error("设备验证失败，请用主密码解锁");
+        throw new Error("快捷解锁失败，请用主密码解锁");
       }
     }
     case "resetVault":
@@ -1234,7 +1236,17 @@ if (extensionApi.alarms?.onAlarm) {
 
 extensionApi.runtime.onMessage.addListener((message, sender, sendResponse) => {
   const task = requestQueue.then(() => handleMessage(message, sender));
-  requestQueue = task.catch(() => {});
+  const followup = task.then(async () => {
+    if (!autoSyncRequested) return;
+    autoSyncRequested = false;
+    try {
+      await runSync();
+      await scheduleAutoSync(5 * 60 * 1000);
+    } catch {
+      await scheduleAutoSync(60 * 1000);
+    }
+  });
+  requestQueue = followup.catch(() => {});
   if (promiseMessages) return task.catch((error) => ({ error: error.message || "操作失败" }));
   task
     .then(sendResponse)

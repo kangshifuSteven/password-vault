@@ -32,7 +32,7 @@
       <section id="updateView" class="view" hidden>
         <div class="section-copy">
           <h2>扩展需要重新加载</h2>
-          <p>扩展文件已更新。重新加载后，可用主密码或已启用的设备验证解锁。</p>
+          <p>扩展文件已更新。重新加载后，可用主密码或已设置的快捷解锁。</p>
         </div>
         <button id="reloadButton" class="primary-button wide-button" type="button">重新加载扩展</button>
       </section>
@@ -77,7 +77,7 @@
           <label>主密码<input id="unlockPassword" type="password" autocomplete="current-password" required placeholder="输入主密码" /></label>
           <button class="primary-button" type="submit">解锁</button>
         </form>
-        <button id="quickUnlockButton" class="secondary-button wide-button quick-unlock-button" type="button" hidden>使用设备验证解锁</button>
+        <button id="quickUnlockButton" class="secondary-button wide-button quick-unlock-button" type="button" hidden>使用快捷解锁</button>
       </section>
 
       <section id="portableView" class="view" hidden>
@@ -230,10 +230,10 @@
                   <option value="60">60 分钟</option>
                 </select>
               </label>
-              <strong>设备验证解锁</strong>
-              <p>开启后，扩展更新或浏览器重启后可通过设备验证解锁。临时电脑不要开启，主密码和恢复备份仍需保留。</p>
-              <button id="enableQuickUnlock" class="secondary-button wide-button" type="button">在此浏览器启用</button>
-              <button id="disableQuickUnlock" class="secondary-button wide-button" type="button" hidden>关闭设备验证解锁</button>
+              <strong>快捷解锁</strong>
+              <p>由浏览器选择本机凭据、账号通行密钥或安全密钥；可用方式因设备而异。只对当前安装生效，主密码仍可解锁。</p>
+              <button id="enableQuickUnlock" class="secondary-button wide-button" type="button">设置快捷解锁</button>
+              <button id="disableQuickUnlock" class="secondary-button wide-button" type="button" hidden>关闭快捷解锁</button>
             </div>
             <div class="backup-export">
               <strong>导出加密恢复备份</strong>

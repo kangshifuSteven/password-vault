@@ -53,6 +53,7 @@ function randomBytes(length) {
 }
 
 async function getPrfResult(credentialId, salt) {
+  if (!navigator.credentials?.get) throw new Error("当前浏览器无法使用快捷解锁，请输入主密码");
   const credential = await navigator.credentials.get({ publicKey: {
     challenge: randomBytes(32),
     allowCredentials: [{ type: "public-key", id: fromBase64(credentialId) }],
@@ -60,7 +61,7 @@ async function getPrfResult(credentialId, salt) {
     extensions: { prf: { eval: { first: fromBase64(salt) } } }
   } });
   const result = credential?.getClientExtensionResults()?.prf?.results?.first;
-  if (!result || result.byteLength !== 32) throw new Error("此设备不支持安全的快速解锁，请使用主密码");
+  if (!result || result.byteLength !== 32) throw new Error("当前验证方式不支持安全快捷解锁，请输入主密码");
   return toBase64(result);
 }
 
@@ -81,7 +82,7 @@ function send(message) {
 }
 
 function showNotice(message = "", tone = "info") {
-  $("notice").textContent = message;
+  $("notice").textContent = PasswordI18n.t(message);
   $("notice").dataset.tone = tone;
 }
 
@@ -760,7 +761,7 @@ $("quickUnlockButton").addEventListener("click", async () => {
     if (showActionError(result)) return;
     await refresh();
   } catch (error) {
-    showNotice(error.name === "NotAllowedError" ? "设备验证已取消，请使用主密码解锁" : (error.message || "设备验证失败，请使用主密码解锁"), "error");
+    showNotice(error.name === "NotAllowedError" ? "未完成通行密钥验证，请输入主密码" : (error.message || "快捷解锁失败，请输入主密码"), "error");
   } finally {
     $("quickUnlockButton").disabled = false;
   }
@@ -770,19 +771,19 @@ $("enableQuickUnlock").addEventListener("click", async () => {
   $("enableQuickUnlock").disabled = true;
   showNotice();
   try {
-    if (!navigator.credentials?.create || !navigator.credentials?.get) throw new Error("此浏览器不支持设备验证");
+    if (!navigator.credentials?.create || !navigator.credentials?.get) throw new Error("当前浏览器不支持快捷解锁，请继续使用主密码");
     const salt = randomBytes(32);
     const credential = await navigator.credentials.create({ publicKey: {
       challenge: randomBytes(32),
       rp: { name: "密码匣" },
       user: { id: randomBytes(16), name: "password-vault", displayName: "密码匣" },
       pubKeyCredParams: [{ type: "public-key", alg: -7 }],
-      authenticatorSelection: { authenticatorAttachment: "platform", residentKey: "required", userVerification: "required" },
+      authenticatorSelection: { residentKey: "preferred", userVerification: "required" },
       attestation: "none",
       extensions: { prf: { eval: { first: salt } } }
     } });
     if (!credential?.getClientExtensionResults()?.prf?.enabled) {
-      throw new Error("此设备暂不支持安全的设备验证解锁");
+      throw new Error("当前验证方式不支持安全快捷解锁，请改选其他方式或使用主密码");
     }
     const credentialId = toBase64(credential.rawId);
     const prfSalt = toBase64(salt);
@@ -791,10 +792,10 @@ $("enableQuickUnlock").addEventListener("click", async () => {
       : await getPrfResult(credentialId, prfSalt);
     const result = await send({ type: "enableQuickUnlock", credentialId, prfSalt, prfResult });
     if (showActionError(result)) return;
-    showNotice("设备验证解锁已开启");
+    showNotice("快捷解锁已开启");
     await refresh();
   } catch (error) {
-    showNotice(error.name === "NotAllowedError" ? "设备验证已取消" : (error.message || "无法开启设备验证解锁"), "error");
+    showNotice(error.name === "NotAllowedError" ? "未完成通行密钥验证" : (error.message || "无法开启快捷解锁"), "error");
   } finally {
     $("enableQuickUnlock").disabled = false;
   }
@@ -803,7 +804,7 @@ $("enableQuickUnlock").addEventListener("click", async () => {
 $("disableQuickUnlock").addEventListener("click", async () => {
   const result = await send({ type: "disableQuickUnlock" });
   if (showActionError(result)) return;
-  showNotice("设备验证解锁已关闭");
+  showNotice("快捷解锁已关闭");
   await refresh();
 });
 
