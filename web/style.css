@@ -86,7 +86,9 @@ input:focus-visible, button:focus-visible { outline: 2px solid #24756b; outline-
 .management-view { max-width:none; }
 .management-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
 .management-heading h1 { min-width: 0; }
+.management-heading-actions, .management-detail-actions { display:flex; flex-wrap:wrap; gap:8px; }
 .management-list { border-top: 1px solid #e3e7eb; margin-top: 20px; }
+.history-more { margin-top:14px; }
 .management-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 54px; padding: 9px 0; border-bottom: 1px solid #edf0f2; font-size: 13px; }
 .management-row span { min-width: 0; overflow-wrap: anywhere; }
 .management-row button { flex: none; }
@@ -125,6 +127,7 @@ input:focus-visible, button:focus-visible { outline: 2px solid #24756b; outline-
 .entry-form .form-stack { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 13px 16px; }
 .entry-form .form-stack > :nth-child(1), .entry-form .form-stack > :nth-child(2), .entry-form .form-stack > :nth-child(n+5) { grid-column: 1 / -1; }
 .entry-form .kind-switch { max-width: 240px; }
+.entry-password-scope { margin: -5px 0 0; color: #697586; font-size: 12px; line-height: 1.45; }
 .save-row button { min-width: 140px; }
 .detail-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 18px; }
 .detail-title-row { display:flex; align-items:center; gap:10px; min-width:0; }

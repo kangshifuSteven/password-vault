@@ -106,15 +106,19 @@ async function writePrivateFile(destination, value) {
   }
 }
 
-async function snapshots() {
+async function snapshotRevisions() {
   const names = await readdir(directory);
-  const revisions = names.map((name) => /^vault-revision-([1-9]\d*)\.json$/.exec(name))
+  return names.map((name) => /^vault-revision-([1-9]\d*)\.json$/.exec(name))
     .filter(Boolean).map((match) => Number(match[1]))
-    .filter(Number.isSafeInteger).sort((a, b) => b - a).slice(0, 50);
-  return Promise.all(revisions.map(async (revision) => ({
+    .filter(Number.isSafeInteger).sort((a, b) => b - a);
+}
+
+async function snapshots(before = Infinity) {
+  const revisions = (await snapshotRevisions()).filter((revision) => revision < before).slice(0, 51);
+  return { snapshots: await Promise.all(revisions.slice(0, 50).map(async (revision) => ({
     revision,
     createdAt: (await stat(path.join(directory, `vault-revision-${revision}.json`))).mtime.toISOString()
-  })));
+  }))), hasMore: revisions.length > 50 };
 }
 
 function validRecord(record) {
@@ -147,10 +151,12 @@ async function handle(request, response) {
     return;
   }
   const snapshotMatch = /^\/v1\/snapshots\/([1-9]\d*)$/.exec(request.url);
+  const snapshotListMatch = /^\/v1\/snapshots(?:\?before=([1-9]\d*))?$/.exec(request.url);
   const deviceMatch = /^\/v1\/devices\/([0-9a-f]{24})$/.exec(request.url);
   const route = request.url === "/v1/vault" && ["GET", "PUT"].includes(request.method) ||
-    request.url === "/v1/snapshots" && request.method === "GET" ||
-    snapshotMatch && request.method === "GET" ||
+    snapshotListMatch && request.method === "GET" ||
+    request.url === "/v1/snapshots" && request.method === "DELETE" ||
+    snapshotMatch && ["GET", "DELETE"].includes(request.method) ||
     request.url === "/v1/devices" && ["GET", "POST"].includes(request.method) ||
     deviceMatch && request.method === "DELETE" ||
     request.url === "/v1/admin/rotate-token" && request.method === "POST";
@@ -163,18 +169,37 @@ async function handle(request, response) {
     reply(response, 401, { error: "unauthorized" });
     return;
   }
-  if (request.url !== "/v1/vault" && request.url !== "/v1/snapshots" && !snapshotMatch &&
-      permission.kind !== "admin") {
+  const deviceAllowed = request.url === "/v1/vault" ||
+    (snapshotListMatch && request.method === "GET") || (snapshotMatch && request.method === "GET");
+  if (!deviceAllowed && permission.kind !== "admin") {
     reply(response, 403, { error: "admin_required" });
     return;
   }
-  if (request.url === "/v1/snapshots") {
-    reply(response, 200, { snapshots: await snapshots() });
+  if (request.url === "/v1/snapshots" && request.method === "DELETE") {
+    const revisions = await snapshotRevisions();
+    for (const revision of revisions) await unlink(path.join(directory, `vault-revision-${revision}.json`));
+    reply(response, 200, { deleted: revisions.length });
+    return;
+  }
+  if (snapshotListMatch) {
+    const before = snapshotListMatch[1] ? Number(snapshotListMatch[1]) : Infinity;
+    if (!Number.isSafeInteger(before) && before !== Infinity) return reply(response, 404, { error: "not_found" });
+    reply(response, 200, await snapshots(before));
     return;
   }
   if (snapshotMatch) {
     const revision = Number(snapshotMatch[1]);
     if (!Number.isSafeInteger(revision)) return reply(response, 404, { error: "not_found" });
+    if (request.method === "DELETE") {
+      if (revision >= (await current()).revision) return reply(response, 409, { error: "current_version" });
+      try { await unlink(path.join(directory, `vault-revision-${revision}.json`)); }
+      catch (error) {
+        if (error.code === "ENOENT") return reply(response, 404, { error: "not_found" });
+        throw error;
+      }
+      reply(response, 200, { deleted: true, revision });
+      return;
+    }
     let saved;
     try { saved = JSON.parse(await readFile(path.join(directory, `vault-revision-${revision}.json`), "utf8")); }
     catch (error) {

@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="zh-CN">
+<meta charset="utf-8">
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: "Microsoft YaHei", "Segoe UI", sans-serif; }
+  .cover { position: relative; width: 1200px; height: 340px; overflow: hidden; background: #e7f1ee; }
+  .cover::before { content: ""; position: absolute; inset: 0 auto 0 0; width: 505px; background: #175f58; }
+  .cover::after { content: ""; position: absolute; inset: 0 0 auto 0; height: 7px; background: #daa257; }
+  .copy { position: absolute; z-index: 2; top: 43px; left: 52px; width: 405px; color: #fff; }
+  .mark { display: grid; place-items: center; width: 45px; height: 45px; border-radius: 6px; background: #e5ad64; color: #174c48; font-size: 27px; font-weight: 700; }
+  h1 { margin: 16px 0 5px; font-size: 45px; line-height: 1.15; letter-spacing: 0; }
+  .english { margin: 0; color: #d8eee9; font-size: 18px; font-weight: 600; }
+  .tagline { margin: 21px 0 0; font-size: 19px; line-height: 1.5; }
+  .features { margin: 12px 0 0; color: #d3e7e3; font-size: 13px; }
+  .web { position: absolute; top: 31px; left: 525px; width: 668px; height: 278px; overflow: hidden; border: 1px solid #c6d7d2; border-radius: 5px; background: #fff; box-shadow: 0 12px 25px #10463c26; }
+  .web img { display: block; width: 810px; height: auto; }
+  .extension { position: absolute; z-index: 1; top: 88px; right: 27px; width: 212px; height: 229px; overflow: hidden; border: 1px solid #c6d7d2; border-radius: 5px; background: #fff; box-shadow: 0 12px 25px #10463c35; }
+  .extension img { display: block; width: 212px; height: auto; }
+</style>
+<div class="cover">
+  <div class="copy">
+    <div class="mark">密</div>
+    <h1>密码匣</h1>
+    <p class="english">Password Vault</p>
+    <p class="tagline">自己的电脑，就是同步服务。</p>
+    <p class="features">浏览器扩展 · 加密备份 · 跨设备同步</p>
+  </div>
+  <div class="web"><img src="screenshots/web-vault.png" alt="网页保险库界面"></div>
+  <div class="extension"><img src="screenshots/extension-popup.png" alt="浏览器扩展界面"></div>
+</div>
+</html>

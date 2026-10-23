@@ -87,6 +87,7 @@ input[type=file] { padding:7px; font-size:12px; }
 .quiet-button:hover, .text-button:hover { color:#24756b; background:#edf6f4; }
 .text-button { padding:4px 6px; color:#6b7684; background:transparent; font-size:11px; }
 .hint { margin:13px 0 0; color:#8a94a1; font-size:11px; line-height:1.5; }
+.entry-password-scope { margin:0; color:#697586; font-size:11px; line-height:1.45; }
 .split-line { display:flex; align-items:center; gap:8px; margin:17px 0 12px; color:#9aa3ae; font-size:11px; }
 .split-line::before, .split-line::after { content:""; height:1px; flex:1; background:#e6e9ed; }
 .view details { border-top:1px solid #e6e9ed; padding:11px 0; }

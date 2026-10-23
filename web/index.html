@@ -118,24 +118,26 @@
                   </button>
                 </span>
               </label>
+              <p id="entryPasswordScope" class="entry-password-scope" hidden>这里只更新密码匣记录，不会修改网站或 App 的登录密码。</p>
               <div class="field-actions">
                 <button id="generateButton" type="button" class="plain-button">生成密码</button>
                 <button id="copyButton" type="button" class="plain-button">复制密码</button>
               </div>
               <label class="checkbox-label"><input id="subdomains" type="checkbox">允许子域名匹配</label>
-              <div class="save-row"><button id="saveButton" class="primary-button" type="submit">保存</button></div>
+              <div class="save-row"><button id="saveButton" class="primary-button" type="submit">保存记录</button></div>
             </div>
           </form>
         </section>
       </div>
       </section>
       <section id="historyView" class="management-view" aria-label="历史版本" hidden>
-        <div class="management-heading"><h1>历史版本</h1><button id="downloadCurrent" type="button" class="plain-button" title="保存当前账号的加密文件，打开仍需主密码">下载当前版本</button></div>
+        <div class="management-heading"><h1>历史版本</h1><div class="management-heading-actions"><button id="downloadCurrent" type="button" class="plain-button" title="保存当前账号的加密文件，打开仍需主密码">下载当前版本</button><button id="clearHistory" type="button" class="danger-button" hidden>清空历史</button></div></div>
         <div id="historyList" class="management-list"></div>
+        <button id="loadMoreHistory" type="button" class="plain-button history-more" hidden>加载更早版本</button>
         <div id="historyDetail" class="management-detail" hidden>
           <h2 id="historyTitle"></h2>
           <p id="historySummary" class="muted"></p>
-          <button id="downloadSnapshot" type="button" class="plain-button" title="保存所选历史版本的加密文件，打开需该版本的主密码">下载此版本</button>
+          <div class="management-detail-actions"><button id="downloadSnapshot" type="button" class="plain-button" title="保存所选历史版本的加密文件，打开需该版本的主密码">下载此版本</button><button id="deleteSnapshot" type="button" class="danger-button" hidden>删除此版本</button></div>
           <form id="restoreForm" class="management-form" hidden>
             <label>当前主密码<input id="restorePassword" type="password" autocomplete="current-password" required></label>
             <label class="checkbox-label"><input id="restoreConfirm" type="checkbox" required>已下载当前版本，并知晓其他设备需要重新加入</label>

@@ -202,11 +202,20 @@ try {
     throw new Error(`Server did not receive automatic vault update ${revision}`);
   }
   await page.locator("#entryList .entry-card").filter({ hasText: "example.com" }).getByText("编辑").click();
+  assert.equal(await page.locator("#entryPasswordScope").isVisible(), true);
   await page.locator("#entryPassword").fill("updated-extension-secret-test");
+  page.once("dialog", async (dialog) => {
+    assert.match(dialog.message(), /只更新密码匣记录/);
+    await dialog.dismiss();
+  });
+  await page.locator("#entryForm button[type=submit]").click();
+  assert.equal((await (await fetch(`${url}/v1/vault`, { headers: { Authorization: `Bearer ${token}` } })).json()).revision, 1);
+  page.once("dialog", (dialog) => dialog.accept());
   await page.locator("#entryForm button[type=submit]").click();
   await waitForRemoteEntries(2, (entries) => entries.some((entry) =>
     entry.site === "example.com" && entry.password === "updated-extension-secret-test"));
   await page.locator("#addButton").click();
+  assert.equal(await page.locator("#entryPasswordScope").isVisible(), false);
   await page.locator("#entryName").fill("Temporary");
   await page.locator("#entrySite").fill("temporary.example");
   await page.locator("#entryUsername").fill("test");

@@ -20,6 +20,9 @@
     "添加 / 保存": "Add / save",
     "保存": "Save",
     "保存账号": "Save account",
+    "保存记录": "Save record",
+    "这里只更新密码匣记录，不会修改网站或 App 的登录密码。": "This updates only the saved record, not the password on the website or app.",
+    "请确认新密码已在网站或 App 生效。这里只更新密码匣记录，继续吗？": "Confirm the new password works on the website or app. This only updates the saved record. Continue?",
     "导入": "Import",
     "导入密码文件": "Import password file",
     "导入文件": "Import file",
@@ -91,6 +94,17 @@
     "返回列表": "Back to list",
     "返回账号": "Back to accounts",
     "查看": "View",
+    "历史版本": "History",
+    "还没有历史版本": "No history versions yet",
+    "加载更早版本": "Load older versions",
+    "删除此版本": "Delete this version",
+    "清空历史": "Clear history",
+    "历史版本已删除": "History version deleted",
+    "历史版本已清空": "History cleared",
+    "删除历史版本失败": "Could not delete history version",
+    "清空历史失败": "Could not clear history",
+    "当前版本不能删除": "The current version cannot be deleted",
+    "删除服务器上所有历史版本？当前保险库不受影响，此操作无法撤销。": "Delete all server history? The current vault stays intact. This cannot be undone.",
     "撤销": "Revoke",
     "新设备名称": "New device name",
     "生成设备令牌": "Generate device token",
@@ -253,6 +267,8 @@
     if (match) return value.replace(trimmed, `Server version ${match[1]}`);
     match = trimmed.match(/^版本 (\d+) · (.+)$/);
     if (match) return value.replace(trimmed, `Version ${match[1]} · ${match[2]}`);
+    match = trimmed.match(/^删除历史版本 (\d+)？删除后无法恢复或下载此版本，当前账号不受影响。$/);
+    if (match) return value.replace(trimmed, `Delete history version ${match[1]}? You cannot restore or download it afterward. The current vault stays intact.`);
     match = trimmed.match(/^已识别：(.+)。网站若有其他规则，请按报错调整。$/);
     if (match) return value.replace(trimmed, `Detected: ${match[1]}. Adjust it if the site reports other rules.`);
     return value;

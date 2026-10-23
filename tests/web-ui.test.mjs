@@ -163,6 +163,7 @@ try {
   await unlock(page, token, password);
   await page.getByRole("button", { name: /Test site/ }).click();
   assert.equal(await page.locator("#entryPassword").inputValue(), "secret-web-test");
+  assert.equal(await page.locator("#entryPasswordScope").isVisible(), true);
   assert.equal(await page.locator("#visitSiteButton").isVisible(), true);
   assert.equal(await page.locator("#visitSiteButton").getAttribute("data-url"), "https://example.com/");
 
@@ -170,10 +171,21 @@ try {
   await second.goto(url);
   await unlock(second, token, password);
   await second.getByRole("button", { name: /Test site/ }).click();
+  const beforeEditRevision = (await (await fetch(`${url}/v1/vault`, {
+    headers: { Authorization: `Bearer ${token}` }
+  })).json()).revision;
   await page.locator("#entryPassword").fill("new-password-first");
+  page.once("dialog", async (dialog) => {
+    assert.match(dialog.message(), /只更新密码匣记录/);
+    await dialog.dismiss();
+  });
+  await page.locator("#saveButton").click();
+  assert.equal((await (await fetch(`${url}/v1/vault`, { headers: { Authorization: `Bearer ${token}` } })).json()).revision,
+    beforeEditRevision);
+  page.once("dialog", (dialog) => dialog.accept());
   await page.locator("#saveButton").click();
   await page.getByText("已保存并同步").waitFor();
-  second.once("dialog", (dialog) => dialog.accept());
+  second.on("dialog", (dialog) => dialog.accept());
   await second.locator("#entryPassword").fill("new-password-second");
   await second.locator("#saveButton").click();
   await second.getByText("已保存并同步").waitFor();
@@ -236,6 +248,23 @@ try {
   await importPage.locator("#restoreButton").click();
   await importPage.locator("#accountsView").waitFor({ state: "visible" });
   assert.equal(await importPage.getByRole("button", { name: /Extra/ }).count(), 0);
+  await importPage.locator("#historyTab").click();
+  await importPage.locator("#historyList .management-row").first().waitFor({ state: "visible" });
+  const historyCount = await importPage.locator("#historyList .management-row").count();
+  await importPage.locator("#historyList button").first().click();
+  importPage.once("dialog", (dialog) => dialog.accept());
+  await importPage.locator("#deleteSnapshot").click();
+  await importPage.getByText("历史版本已删除").waitFor();
+  assert.equal(await importPage.locator("#historyList .management-row").count(), historyCount - 1);
+  await importPage.setViewportSize({ width: 320, height: 740 });
+  await checkLayout(importPage, "mobile history 320px");
+  await importPage.screenshot({ path: path.join(tmpdir(), `password-vault-${engineName}-history-mobile.png`) });
+  importPage.once("dialog", (dialog) => dialog.accept());
+  await importPage.locator("#clearHistory").click();
+  await importPage.getByText("历史版本已清空").waitFor();
+  assert.equal(await importPage.locator("#historyList").textContent(), "还没有历史版本");
+  assert.equal(await importPage.locator("#historyDetail").isVisible(), false);
+  await importPage.setViewportSize({ width: 1200, height: 800 });
 
   await importPage.locator("#devicesTab").click();
   await importPage.locator("#deviceName").fill("Test phone");

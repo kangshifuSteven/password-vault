@@ -188,6 +188,7 @@ function resetEntryForm() {
   $("entryForm").reset();
   setEntryPasswordVisible(false);
   $("formTitle").textContent = "添加账号";
+  $("entryPasswordScope").hidden = true;
   $("cancelEdit").hidden = true;
   document.querySelectorAll('input[name="entryKind"]').forEach((radio) => { radio.checked = radio.value === "site"; });
   updateEntryKind();
@@ -466,6 +467,7 @@ function editEntry(entry) {
   setEntryPasswordVisible(false);
   editingId = entry.id;
   $("formTitle").textContent = "编辑账号";
+  $("entryPasswordScope").hidden = false;
   $("cancelEdit").hidden = false;
   $("entryName").value = entry.name;
   document.querySelectorAll('input[name="entryKind"]').forEach((radio) => { radio.checked = radio.value === (entry.kind === "app" ? "app" : "site"); });
@@ -1099,6 +1101,9 @@ document.querySelectorAll('input[name="entryKind"]').forEach((radio) => radio.ad
 
 $("entryForm").addEventListener("submit", async (event) => {
   event.preventDefault();
+  const original = currentEntries.find((entry) => entry.id === editingId);
+  if (original && original.password !== $("entryPassword").value &&
+    !window.confirm(PasswordI18n.t("请确认新密码已在网站或 App 生效。这里只更新密码匣记录，继续吗？"))) return;
   const result = await send({
     type: "saveEntry",
     entry: {

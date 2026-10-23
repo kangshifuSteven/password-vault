@@ -317,6 +317,19 @@ try {
   assert(snapshots.length > 0);
   assert.equal((await fetch(`${url}/v1/snapshots/${snapshots[0].revision}`, {
     headers: adminHeaders })).status, 200);
+  assert.equal((await fetch(`${url}/v1/snapshots/${snapshots[0].revision}`, {
+    method: "DELETE", headers: { Authorization: `Bearer ${issued.token}` } })).status, 403);
+  assert.equal((await fetch(`${url}/v1/snapshots`, {
+    method: "DELETE", headers: { Authorization: `Bearer ${issued.token}` } })).status, 403);
+  const revisionBeforeDelete = (await (await fetch(`${url}/v1/vault`, { headers: adminHeaders })).json()).revision;
+  assert.equal((await fetch(`${url}/v1/snapshots/${revisionBeforeDelete}`, {
+    method: "DELETE", headers: adminHeaders })).status, 409);
+  assert.equal((await fetch(`${url}/v1/snapshots/${snapshots[0].revision}`, {
+    method: "DELETE", headers: adminHeaders })).status, 200);
+  assert.equal((await fetch(`${url}/v1/snapshots/${snapshots[0].revision}`, {
+    headers: adminHeaders })).status, 404);
+  assert.equal((await (await fetch(`${url}/v1/vault`, { headers: adminHeaders })).json()).revision,
+    revisionBeforeDelete);
   assert.equal((await fetch(`${url}/v1/devices/${issued.device.id}`, {
     method: "DELETE", headers: adminHeaders })).status, 200);
   assert.equal((await fetch(`${url}/v1/vault`, {
@@ -329,6 +342,29 @@ try {
   assert.equal((await fetch(`${url}/v1/vault`, { headers: adminHeaders })).status, 401);
   assert.equal((await e({ type: "syncNow" })).status, "unchanged");
   assert.equal((await e({ type: "getSyncState" })).status.kind, "ok");
+  let latest = await (await fetch(`${url}/v1/vault`, { headers: { Authorization: `Bearer ${newToken}` } })).json();
+  for (let index = 0; index < 51; index++) {
+    const updated = await fetch(`${url}/v1/vault`, { method: "PUT", headers: {
+      Authorization: `Bearer ${newToken}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ expectedRevision: latest.revision, record: latest.record }) });
+    assert.equal(updated.status, 200);
+    latest = { ...latest, revision: (await updated.json()).revision };
+  }
+  const firstPage = await (await fetch(`${url}/v1/snapshots`, {
+    headers: { Authorization: `Bearer ${newToken}` } })).json();
+  assert.equal(firstPage.snapshots.length, 50);
+  assert.equal(firstPage.hasMore, true);
+  const olderPage = await (await fetch(`${url}/v1/snapshots?before=${firstPage.snapshots.at(-1).revision}`, {
+    headers: { Authorization: `Bearer ${newToken}` } })).json();
+  assert(olderPage.snapshots.length > 0);
+  const cleared = await fetch(`${url}/v1/snapshots`, { method: "DELETE",
+    headers: { Authorization: `Bearer ${newToken}` } });
+  assert.equal(cleared.status, 200);
+  assert((await cleared.json()).deleted >= 50);
+  assert.deepEqual((await (await fetch(`${url}/v1/snapshots`, {
+    headers: { Authorization: `Bearer ${newToken}` } })).json()).snapshots, []);
+  assert.equal((await (await fetch(`${url}/v1/vault`, {
+    headers: { Authorization: `Bearer ${newToken}` } })).json()).revision, latest.revision);
   console.log("Sync test passed: merge onboarding, device revocation, token rotation, history, encryption, CAS.");
 } finally {
   server.kill();

@@ -7,6 +7,7 @@
   let lastActivity = Date.now();
   let clientRecord = null;
   let selectedSnapshot = null;
+  let oldestHistoryRevision = null;
   let pendingImport = null;
   let sharedSessionId = null;
   let sharedTouchAt = 0;
@@ -78,7 +79,7 @@
   });
 
   function notice(message, error = false) {
-    $("notice").textContent = message;
+    $("notice").textContent = PasswordI18n.t(message);
     $("notice").dataset.tone = error ? "error" : "info";
     $("notice").hidden = !message;
   }
@@ -130,7 +131,8 @@
 
   function validResource(resource) {
     return ["/v1/vault", "/v1/snapshots", "/v1/devices", "/v1/admin/rotate-token"].includes(resource) ||
-      /^\/v1\/snapshots\/[1-9]\d*$/.test(resource) || /^\/v1\/devices\/[0-9a-f]{24}$/.test(resource);
+      /^\/v1\/snapshots(?:\?before=[1-9]\d*|\/[1-9]\d*)$/.test(resource) ||
+      /^\/v1\/devices\/[0-9a-f]{24}$/.test(resource);
   }
 
   async function request(token, method = "GET", body, resource = "/v1/vault") {
@@ -427,6 +429,7 @@
     $("entrySite").value = entry?.site || "";
     $("entryUsername").value = entry?.username || "";
     $("entryPassword").value = entry?.password || "";
+    $("entryPasswordScope").hidden = !entry;
     $("entryPassword").type = "password";
     $("showPassword").title = "显示密码";
     $("showPassword").setAttribute("aria-label", "显示密码");
@@ -496,14 +499,25 @@
   }
 
   async function loadHistory() {
-    const { snapshots } = await request(state.token, "GET", undefined, "/v1/snapshots");
     $("historyList").replaceChildren();
     $("historyDetail").hidden = true;
     selectedSnapshot = null;
+    oldestHistoryRevision = null;
+    $("loadMoreHistory").hidden = true;
+    await appendHistory();
+  }
+
+  async function appendHistory() {
+    const resource = oldestHistoryRevision
+      ? `/v1/snapshots?before=${oldestHistoryRevision}` : "/v1/snapshots";
+    const { snapshots, hasMore } = await request(state.token, "GET", undefined, resource);
+    $("clearHistory").hidden = $("devicesTab").hidden || (!oldestHistoryRevision && !snapshots.length);
+    $("loadMoreHistory").hidden = !hasMore;
     if (!snapshots.length) {
-      $("historyList").textContent = "还没有历史版本";
+      if (!oldestHistoryRevision) $("historyList").textContent = PasswordI18n.t("还没有历史版本");
       return;
     }
+    oldestHistoryRevision = snapshots.at(-1).revision;
     for (const snapshot of snapshots) {
       const row = document.createElement("div");
       row.className = "management-row";
@@ -525,6 +539,7 @@
       selectedSnapshot = snapshot;
       $("historyTitle").textContent = `版本 ${revision}`;
       $("historyDetail").hidden = false;
+      $("deleteSnapshot").hidden = $("devicesTab").hidden;
       $("restoreForm").reset();
       $("restoreForm").hidden = true;
       if (snapshot.record.salt !== state.record.salt) {
@@ -536,6 +551,31 @@
       $("restoreForm").hidden = false;
       notice("");
     } catch (error) { notice(error.message || "无法打开历史版本", true); }
+  }
+
+  async function deleteSnapshot() {
+    if (!selectedSnapshot || busy) return;
+    const revision = selectedSnapshot.revision;
+    if (!confirm(PasswordI18n.t(`删除历史版本 ${revision}？删除后无法恢复或下载此版本，当前账号不受影响。`))) return;
+    busy = true;
+    try {
+      const result = await request(state.token, "DELETE", undefined, `/v1/snapshots/${revision}`);
+      if (result.conflict) throw new Error("当前版本不能删除");
+      await loadHistory();
+      notice("历史版本已删除");
+    } catch (error) { notice(error.message || "删除历史版本失败", true); }
+    finally { busy = false; }
+  }
+
+  async function clearHistory() {
+    if (busy || !confirm(PasswordI18n.t("删除服务器上所有历史版本？当前保险库不受影响，此操作无法撤销。"))) return;
+    busy = true;
+    try {
+      await request(state.token, "DELETE", undefined, "/v1/snapshots");
+      await loadHistory();
+      notice("历史版本已清空");
+    } catch (error) { notice(error.message || "清空历史失败", true); }
+    finally { busy = false; }
   }
 
   async function restoreSnapshot(event) {
@@ -695,6 +735,9 @@
     const duplicate = state.vault.entries.find((entry) => entry.id !== selectedId &&
       (entry.kind || "site") === kind && entry.site === site && entry.username === username);
     if (duplicate) return notice(kind === "app" ? "这个 App 和账号已经存在，请编辑原记录" : "这个网站和用户名已经存在，请编辑原账号", true);
+    const original = state.vault.entries.find((entry) => entry.id === selectedId);
+    if (original && original.password !== password &&
+      !window.confirm(PasswordI18n.t("请确认新密码已在网站或 App 生效。这里只更新密码匣记录，继续吗？"))) return;
     const id = selectedId || crypto.randomUUID();
     const entry = { id, kind, name: $("entryName").value.trim().slice(0, 100), site,
       username: username.slice(0, 320), password: password.slice(0, 1000),
@@ -808,6 +851,9 @@
     if (selectedSnapshot) downloadRecord(selectedSnapshot.record,
       `password-vault-revision-${selectedSnapshot.revision}.json`);
   });
+  $("loadMoreHistory").addEventListener("click", () => appendHistory().catch((error) => notice(error.message || "读取历史失败", true)));
+  $("deleteSnapshot").addEventListener("click", deleteSnapshot);
+  $("clearHistory").addEventListener("click", clearHistory);
   $("restoreForm").addEventListener("submit", restoreSnapshot);
   $("deviceForm").addEventListener("submit", createDevice);
   $("rotateAdminToken").addEventListener("click", rotateAdminToken);
