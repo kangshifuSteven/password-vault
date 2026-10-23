@@ -1,0 +1,21 @@
+name: macOS check
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  server-and-sync:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Check release and sync on macOS
+        run: |
+          node release-check.mjs
+          node tests/sync.test.mjs
+          node tests/firefox-compat.test.mjs

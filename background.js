@@ -193,7 +193,7 @@ async function localPair(url = "http://127.0.0.1:39871") {
     return pair;
   } catch (error) {
     if (error.name === "AbortError") throw new Error("本机服务连接超时");
-    if (error instanceof TypeError) throw new Error("本机服务未运行，请先启动 Ubuntu 中的服务");
+    if (error instanceof TypeError) throw new Error("本机服务未运行，请先启动同步服务");
     throw error;
   } finally {
     clearTimeout(timeout);
