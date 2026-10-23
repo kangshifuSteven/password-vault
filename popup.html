@@ -1,0 +1,289 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>密码匣</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <header class="app-header">
+        <div>
+          <h1>密码匣</h1>
+          <p>独立保险库</p>
+        </div>
+        <div class="header-status"><span id="statusBadge" class="status-badge">检查中</span><label class="language-control"><span class="sr-only">选择语言</span><select id="languageSelect" aria-label="选择语言"><option value="zh-CN">中文</option><option value="en">English</option></select></label><button id="guideButton" class="help-button" type="button" aria-label="使用指导" title="使用指导">?</button><button id="lockButton" class="quiet-button" type="button" hidden>锁定</button></div>
+      </header>
+
+      <div id="notice" class="notice" role="status"></div>
+      <dialog id="guideDialog" class="guide-dialog" aria-labelledby="guideDialogTitle">
+        <div class="guide-dialog-heading"><h2 id="guideDialogTitle">使用指导</h2><button id="guideClose" class="quiet-button" type="button">关闭</button></div>
+        <dl>
+          <dt>添加 / 保存</dt><dd>保存网站或 App 账号；连接服务器后会自动同步账号更改。</dd>
+          <dt>导入</dt><dd>选择浏览器导出的 CSV，核对新增与重复账号后确认。原浏览器密码不会自动删除。</dd>
+          <dt>恢复备份</dt><dd>备份文件和恢复私钥分别保存。忘记主密码时，用这两个文件重新设置。</dd>
+          <dt>导出密码文件</dt><dd>用于在服务器网页导入账号。文件已加密，打开仍需当前主密码，不能用它重设忘记的主密码。</dd>
+          <dt>同步</dt><dd>连接自己的服务器，上传本机改动并取回最新账号。两边都有账号时先预览合并。</dd>
+          <dt>锁定</dt><dd>清除当前解锁会话；下次使用需重新解锁。</dd>
+        </dl>
+      </dialog>
+
+      <section id="updateView" class="view" hidden>
+        <div class="section-copy">
+          <h2>扩展需要重新加载</h2>
+          <p>扩展文件已更新。重新加载后，可用主密码或已启用的设备验证解锁。</p>
+        </div>
+        <button id="reloadButton" class="primary-button wide-button" type="button">重新加载扩展</button>
+      </section>
+
+      <section id="setupView" class="view" hidden>
+        <div class="section-copy">
+          <h2>创建密码匣</h2>
+          <p>默认只保存在本机。主动连接自己的服务器后，才会同步加密保险库。</p>
+        </div>
+        <div class="setup-guide"><strong>第一次使用</strong><p>没有旧库就创建主密码；换电脑从已有服务器加入；有恢复文件则从下方恢复。新建不会带回旧账号。</p></div>
+        <form id="setupForm" class="stack-form">
+          <label>主密码<input id="setupPassword" type="password" minlength="16" autocomplete="new-password" required placeholder="至少 16 个字符" /></label>
+          <label>再次输入<input id="setupConfirm" type="password" minlength="16" autocomplete="new-password" required placeholder="确认主密码" /></label>
+          <button class="primary-button" type="submit">创建并解锁</button>
+        </form>
+        <details class="join-server">
+          <summary>从已有服务器加入</summary>
+          <form id="bootstrapLocalForm" class="stack-form auxiliary-form">
+            <label>原主密码<input id="bootstrapLocalPassword" type="password" required autocomplete="current-password" /></label>
+            <button class="secondary-button wide-button" type="submit">从本机服务取回</button>
+          </form>
+          <details class="manual-sync">
+            <summary>其他设备或自定义地址</summary>
+          <form id="bootstrapSyncForm" class="stack-form auxiliary-form">
+            <label>服务器地址<input id="bootstrapUrl" type="url" required placeholder="http://127.0.0.1:39871" /></label>
+            <label>访问令牌<input id="bootstrapToken" type="password" required autocomplete="off" /></label>
+            <label>原主密码<input id="bootstrapPassword" type="password" required autocomplete="current-password" /></label>
+            <button class="secondary-button wide-button" type="submit">取回并解锁</button>
+          </form>
+          </details>
+        </details>
+      </section>
+
+      <section id="lockedView" class="view" hidden>
+        <div class="section-copy">
+          <h2>解锁密码匣</h2>
+          <p>解锁后，密码只在当前浏览器会话内存中使用。</p>
+        </div>
+        <form id="unlockForm" class="stack-form">
+          <label>主密码<input id="unlockPassword" type="password" autocomplete="current-password" required placeholder="输入主密码" /></label>
+          <button class="primary-button" type="submit">解锁</button>
+        </form>
+        <button id="quickUnlockButton" class="secondary-button wide-button quick-unlock-button" type="button" hidden>使用设备验证解锁</button>
+      </section>
+
+      <section id="recoveryTools" class="view" hidden>
+        <div class="split-line"><span>备份与恢复</span></div>
+        <details>
+          <summary>用恢复备份找回账号</summary>
+          <form id="restoreRecoveryForm" class="stack-form auxiliary-form">
+            <label>加密恢复文件<input id="recoveryFile" type="file" accept="application/json,.json" required /></label>
+            <label id="recoveryPrivateKeyLabel" hidden>恢复私钥文件<input id="recoveryPrivateKeyFile" type="file" accept="application/json,.json" /></label>
+            <label id="recoveryPasswordLabel">旧备份的恢复密码<input id="recoveryPassword" type="password" autocomplete="off" required placeholder="旧版备份使用" /></label>
+            <label>新的主密码<input id="newMasterPassword" type="password" autocomplete="new-password" minlength="16" required placeholder="至少 16 个字符" /></label>
+            <label>确认新主密码<input id="newMasterConfirm" type="password" autocomplete="new-password" minlength="16" required placeholder="再次输入新主密码" /></label>
+            <button class="secondary-button wide-button" type="submit">恢复并设置新主密码</button>
+          </form>
+        </details>
+        <details>
+          <summary>临时使用加密备份</summary>
+        <form id="ephemeralForm" class="stack-form">
+          <label>加密备份文件<input id="ephemeralFile" type="file" accept="application/json,.json" required /></label>
+          <label id="ephemeralPrivateKeyLabel" hidden>恢复私钥文件<input id="ephemeralPrivateKeyFile" type="file" accept="application/json,.json" /></label>
+          <label id="ephemeralPasswordLabel">备份密码<input id="ephemeralPassword" type="password" autocomplete="off" required placeholder="旧版备份或密码文件的密码" /></label>
+          <button class="secondary-button wide-button" type="submit">以便携模式打开</button>
+        </form>
+        <p class="hint">只在当前会话使用，不保存到此设备。锁定或关闭浏览器后会清除内存；设备若被植入键盘记录或恶意软件，仍不适合输入重要密码。</p>
+        </details>
+        <button id="resetVaultButton" class="danger-button" type="button">清空保险库并重新开始</button>
+      </section>
+
+      <section id="unlockedView" class="view" hidden>
+        <div id="sessionHint" class="session-hint" hidden>便携模式：只在内存中运行，不会保存到此设备</div>
+        <section id="firstRunGuide" class="first-run-guide" aria-label="首次使用指导" hidden>
+          <div class="first-run-heading"><strong id="guideProgress"></strong><button id="guideSkip" class="text-button" type="button">跳过</button></div>
+          <h2 id="guideTitle"></h2>
+          <p id="guideDescription"></p>
+          <button id="guideNext" class="secondary-button" type="button">下一步</button>
+        </section>
+        <nav class="view-tabs" role="tablist" aria-label="密码匣视图">
+          <button id="accountsButton" type="button" role="tab" aria-controls="accountsPane" aria-selected="true">账号</button>
+          <button id="addButton" type="button" role="tab" aria-controls="entryPane" aria-selected="false">添加</button>
+          <button id="importButton" type="button" role="tab" aria-controls="importPane" aria-selected="false">导入</button>
+          <button id="exportButton" type="button" role="tab" aria-controls="backupPane" aria-selected="false">备份</button>
+          <button id="syncButton" type="button" role="tab" aria-controls="syncPane" aria-selected="false">同步</button>
+        </nav>
+        <section id="accountsPane" class="tab-pane" role="tabpanel" aria-labelledby="accountsButton">
+          <div id="accountsListView">
+            <div class="account-toolbar"><span id="accountCount">0 个账号</span><div class="account-tools"><button id="syncIndicator" class="quiet-button sync-indicator" type="button">本机</button><button id="auditButton" class="quiet-button" type="button">检查重复密码</button></div></div>
+            <div id="pendingLoginPanel" class="pending-login" hidden>
+              <div class="pending-heading"><strong>待保存的登录</strong><span id="pendingCount"></span></div>
+              <span id="pendingSite"></span>
+              <input id="pendingUsername" type="text" autocomplete="off" aria-label="待保存的登录账号" placeholder="邮箱或用户名" />
+              <div class="pending-actions">
+                <button id="pendingDismiss" class="text-button" type="button">不保存</button>
+                <button id="pendingSave" class="secondary-button" type="button">保存</button>
+              </div>
+            </div>
+            <label class="search-box"><span>⌕</span><input id="searchInput" type="search" placeholder="搜索网站或账号" /></label>
+            <div id="entryList" class="entry-list"></div>
+            <div id="emptyState" class="empty-state" hidden>
+              <strong>还没有保存的账号</strong>
+            </div>
+          </div>
+          <div id="auditView" hidden>
+            <div class="audit-heading"><strong>重复密码</strong><button id="auditBack" class="text-button" type="button">返回账号</button></div>
+            <p id="auditSummary" class="audit-summary"></p>
+            <div id="auditList" class="audit-list"></div>
+          </div>
+        </section>
+        <section id="entryPane" class="tab-pane" role="tabpanel" aria-labelledby="addButton" hidden>
+          <form id="entryForm" class="entry-form">
+            <div class="form-heading"><h2 id="formTitle">添加账号</h2><button id="cancelEdit" class="text-button" type="button" hidden>取消编辑</button></div>
+            <div class="kind-switch" role="group" aria-label="账号类型">
+              <label><input type="radio" name="entryKind" value="site" checked><span>网站</span></label>
+              <label><input type="radio" name="entryKind" value="app"><span>App</span></label>
+            </div>
+            <label>名称<input id="entryName" type="text" required placeholder="例如：工作邮箱" /></label>
+            <label><span id="entrySiteLabel">网站</span><input id="entrySite" type="text" required placeholder="example.com" /></label>
+            <label>用户名<input id="entryUsername" type="text" required autocomplete="off" /></label>
+            <label>密码
+              <div class="password-row">
+                <div class="password-input">
+                  <input id="entryPassword" type="password" required autocomplete="new-password" />
+                  <button id="toggleEntryPassword" class="password-visibility" type="button" aria-label="显示密码" aria-pressed="false" title="显示密码">
+                    <svg id="entryEye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0" />
+                      <circle cx="12" cy="12" r="3" />
+                    </svg>
+                    <svg id="entryEyeOff" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" hidden>
+                      <path d="M10.733 5.076a10.744 10.744 0 0 1 11.205 6.575 1 1 0 0 1 0 .696 10.747 10.747 0 0 1-1.444 2.49" />
+                      <path d="M14.084 14.158a3 3 0 0 1-4.242-4.242" />
+                      <path d="M17.479 17.499a10.75 10.75 0 0 1-15.417-5.151 1 1 0 0 1 0-.696 10.75 10.75 0 0 1 4.446-5.143" />
+                      <path d="m2 2 20 20" />
+                    </svg>
+                  </button>
+                </div>
+                <input id="generatorLength" class="generator-length" type="number" min="12" max="64" step="1" value="24" aria-label="密码长度" />
+                <button id="generateButton" class="secondary-button" type="button">生成</button>
+              </div>
+            </label>
+            <label class="checkbox-label"><input id="entrySubdomains" type="checkbox" />允许子域名自动填充</label>
+            <button class="primary-button" type="submit">保存账号</button>
+          </form>
+        </section>
+        <section id="importPane" class="tab-pane" role="tabpanel" aria-labelledby="importButton" hidden>
+          <input id="importFile" type="file" accept=".csv,text/csv" hidden />
+          <section id="importPanel" class="import-panel" hidden>
+            <div class="import-heading"><strong>从浏览器导入</strong><button id="cancelImport" class="text-button" type="button">返回账号</button></div>
+            <p id="browserImportHint"></p>
+            <div class="import-steps">
+              <button id="openBrowserPasswords" class="secondary-button import-step-button" type="button">打开密码导出页</button>
+              <button id="selectImportFile" class="secondary-button import-step-button" type="button">选择导出的 CSV</button>
+            </div>
+            <p>选择 CSV 时优先打开系统“下载”文件夹；若浏览器另设了保存位置，可从下载记录定位。仅在可信电脑导出，导入后删除明文 CSV。原浏览器记录不会被删除。</p>
+            <div id="importReview" class="import-review" hidden>
+              <div id="importSummary" class="import-summary"></div>
+              <div class="import-actions">
+                <button id="skipImport" class="secondary-button" type="button">只添加新账号</button>
+                <button id="replaceImport" class="primary-button" type="button">导入并覆盖重复项</button>
+              </div>
+            </div>
+            <div class="browser-cleanup">
+              <strong>清理浏览器旧密码</strong>
+              <p id="browserCleanupHint"></p>
+              <button id="openBrowserCleanup" class="secondary-button wide-button" type="button">打开浏览器清理页</button>
+            </div>
+          </section>
+        </section>
+        <section id="backupPane" class="tab-pane" role="tabpanel" aria-labelledby="exportButton" hidden>
+          <section id="backupPanel" class="backup-panel" hidden>
+            <div class="import-heading"><strong>备份与解锁</strong><button id="cancelBackup" class="text-button" type="button">返回账号</button></div>
+            <div id="quickUnlockPanel" class="quick-unlock-panel" hidden>
+              <label>无操作后锁定
+                <select id="autoLockMinutes">
+                  <option value="5">5 分钟</option>
+                  <option value="30">30 分钟</option>
+                  <option value="60">60 分钟</option>
+                </select>
+              </label>
+              <strong>设备验证解锁</strong>
+              <p>开启后，扩展更新或浏览器重启后可通过设备验证解锁。临时电脑不要开启，主密码和恢复备份仍需保留。</p>
+              <button id="enableQuickUnlock" class="secondary-button wide-button" type="button">在此浏览器启用</button>
+              <button id="disableQuickUnlock" class="secondary-button wide-button" type="button" hidden>关闭设备验证解锁</button>
+            </div>
+            <div class="backup-export">
+              <strong>导出加密恢复备份</strong>
+              <p>浏览器生成恢复公钥和私钥。先单独保存私钥，再下载加密备份；忘记主密码时需要这两个文件。</p>
+              <button id="confirmBackup" class="primary-button" type="button">生成恢复备份</button>
+              <div id="recoveryKeyPanel" class="recovery-key-panel" hidden>
+                <button id="downloadPrivateKey" class="secondary-button" type="button">下载恢复私钥</button>
+                <p>私钥文件只提供这一次。请把它移到备份文件之外；两个文件一起泄露就会暴露账号。</p>
+                <label class="checkbox-label"><input id="savedPrivateKey" type="checkbox" disabled />我已单独保存恢复私钥</label>
+                <button id="downloadRecovery" class="primary-button" type="button" disabled>下载加密恢复文件</button>
+              </div>
+            </div>
+            <div class="backup-export">
+              <strong>在服务器网页导入账号</strong>
+              <p>先导出加密密码文件，再到服务器网页导入。文件受当前主密码保护，不能用它重设主密码。</p>
+              <button id="exportServerVault" class="secondary-button wide-button" type="button">导出密码文件</button>
+            </div>
+          </section>
+        </section>
+        <section id="syncPane" class="tab-pane" role="tabpanel" aria-labelledby="syncButton" hidden>
+          <div id="syncUnavailable" class="hint" hidden>便携模式不连接服务器。</div>
+          <div id="syncSetup">
+            <p id="syncLocalStatus" class="hint">正在检查本机服务…</p>
+            <button id="syncConnectLocal" class="primary-button wide-button" type="button">连接本机服务</button>
+            <div id="syncMergePanel" class="sync-merge-panel" hidden>
+              <strong>本机与服务器各有保险库</strong>
+              <p class="hint">可合并账号并保留服务器已有记录；此浏览器随后改用服务器主密码。</p>
+              <label>服务器主密码<input id="syncServerPassword" type="password" autocomplete="current-password" /></label>
+              <button id="syncPreviewMerge" class="secondary-button wide-button" type="button">核对两份账号</button>
+              <div id="syncMergeReview" hidden>
+                <p id="syncMergeSummary" class="hint"></p>
+                <button id="syncApplyMerge" class="primary-button wide-button" type="button">确认合并并连接</button>
+              </div>
+            </div>
+            <details class="manual-sync">
+              <summary>使用其他服务器地址</summary>
+            <form id="syncSetupForm" class="stack-form auxiliary-form">
+              <label>服务器地址<input id="syncUrl" type="url" required placeholder="http://127.0.0.1:39871" /></label>
+              <label>访问令牌<input id="syncToken" type="password" required autocomplete="off" /></label>
+              <button class="secondary-button wide-button" type="submit">连接此地址</button>
+            </form>
+            </details>
+            <p class="hint">本机服务启动后自动连接；仅传输加密保险库。其他设备请使用自己的 HTTPS 地址。</p>
+            <details class="rekey-server">
+              <summary>用恢复文件重设主密码后</summary>
+              <p>旧服务器保险库使用原密钥。确认已备份本机和服务器数据后，可用本机恢复结果替换服务器当前版本；其他设备需重新加入。</p>
+              <button id="syncReplaceAfterRecovery" class="danger-button" type="button">用本机恢复结果重建服务器副本</button>
+            </details>
+          </div>
+          <div id="syncConnected" hidden>
+            <div class="sync-summary"><strong id="syncHost"></strong><span id="syncRevision"></span></div>
+            <p id="syncLast" class="hint"></p>
+            <p id="syncStatus" class="sync-status" role="status" hidden></p>
+            <button id="syncNow" class="secondary-button wide-button" type="button">立即同步</button>
+            <div id="syncConflicts" class="sync-conflicts" hidden>
+              <strong>以下账号在两端都发生了变化</strong>
+              <div id="syncConflictList"></div>
+              <button id="syncResolve" class="secondary-button wide-button" type="button">按选择合并</button>
+            </div>
+            <button id="syncDisconnect" class="text-button" type="button">断开此设备</button>
+          </div>
+        </section>
+      </section>
+    </main>
+    <script src="i18n.js"></script>
+    <script src="crypto.js"></script>
+    <script src="csv.js"></script>
+    <script src="popup.js"></script>
+  </body>
+</html>

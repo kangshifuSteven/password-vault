@@ -1,0 +1,76 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+  id-token: write
+  attestations: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out tag
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Run release checks
+        run: |
+          test "$(node -p "require('./manifest.json').version")" = "${GITHUB_REF_NAME#v}"
+          node release-check.mjs
+          node tests/sync.test.mjs
+          node tests/firefox-compat.test.mjs
+
+      - name: Build release files
+        id: build
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="${GITHUB_REF_NAME#v}"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          root="release"
+          extension_files=(manifest.json i18n.js crypto.js csv.js sync.js background.js content.js content.css popup.js popup.html popup.css suggest.js suggest.html suggest.css web-bridge.js NOTICE.md LICENSE LUCIDE-LICENSE)
+          mkdir -p "$root/chrome-edge" "$root/firefox" "$root/server-wsl"
+          for file in "${extension_files[@]}"; do
+            cp "$file" "$root/chrome-edge/$file"
+            cp "$file" "$root/firefox/$file"
+          done
+          cp -R server web i18n.js crypto.js sync.js NOTICE.md README.md CHANGELOG.md SECURITY.md LICENSE LUCIDE-LICENSE "$root/server-wsl/"
+          (cd "$root/chrome-edge" && zip -qr "../../password-vault-v${version}-chrome-edge.zip" .)
+          (cd "$root/firefox" && zip -qr "../../password-vault-v${version}-firefox.zip" .)
+          tar -czf "password-vault-v${version}-server-wsl.tar.gz" -C "$root/server-wsl" .
+          git archive --format=zip --prefix="password-vault-v${version}/" "$GITHUB_SHA" \
+            -o "password-vault-v${version}-source.zip"
+          sha256sum password-vault-v${version}-*.zip password-vault-v${version}-server-wsl.tar.gz \
+            > "password-vault-v${version}-checksums.txt"
+
+      - name: Attest release artifacts
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: |
+            password-vault-v${{ steps.build.outputs.version }}-chrome-edge.zip
+            password-vault-v${{ steps.build.outputs.version }}-firefox.zip
+            password-vault-v${{ steps.build.outputs.version }}-server-wsl.tar.gz
+            password-vault-v${{ steps.build.outputs.version }}-source.zip
+            password-vault-v${{ steps.build.outputs.version }}-checksums.txt
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: Password Vault v${{ steps.build.outputs.version }}
+          generate_release_notes: true
+          files: |
+            password-vault-v${{ steps.build.outputs.version }}-chrome-edge.zip
+            password-vault-v${{ steps.build.outputs.version }}-firefox.zip
+            password-vault-v${{ steps.build.outputs.version }}-server-wsl.tar.gz
+            password-vault-v${{ steps.build.outputs.version }}-source.zip
+            password-vault-v${{ steps.build.outputs.version }}-checksums.txt

@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>密码建议 - 密码匣</title>
+    <link rel="stylesheet" href="suggest.css" />
+  </head>
+  <body>
+    <main>
+      <header>
+        <div class="suggest-header-row"><h1 id="heading">密码建议</h1><label class="language-control"><span class="sr-only">选择语言</span><select id="languageSelect" aria-label="选择语言"><option value="zh-CN">中文</option><option value="en">English</option></select></label></div>
+        <p id="site"></p>
+      </header>
+      <div id="notice" role="status"></div>
+      <section id="suggestion" hidden>
+        <div id="insecure" class="warning" hidden>当前网站使用 HTTP，密码可能被截获。请确认地址。</div>
+        <p id="rules" class="rules"></p>
+        <div id="accountOptions" hidden>
+          <label for="account">要修改的账号</label>
+          <select id="account"></select>
+        </div>
+        <div class="mode-switch" role="group" aria-label="建议方式">
+          <button id="randomMode" type="button" aria-pressed="true">独立随机</button>
+          <button id="referenceMode" type="button" aria-pressed="false">参考已有密码</button>
+        </div>
+        <div id="referenceOptions" hidden>
+          <label for="source">参考账号</label>
+          <select id="source"></select>
+          <p class="risk">相似密码有连带泄露风险，重要账号请选独立随机。</p>
+          <details><summary>查看易记规则</summary><p>原密码前 4 位 + 主域名前 4 位及后缀首字母 + 原密码后 4 位，必要时补足长度和字符类型。</p></details>
+        </div>
+        <button id="generate" class="primary" type="button">生成建议</button>
+        <div id="result" hidden>
+          <label for="password">建议密码，可修改</label>
+          <div class="password-row">
+            <input id="password" type="password" autocomplete="off" spellcheck="false" />
+            <button id="toggle" type="button" aria-label="显示密码" title="显示密码">
+              <svg id="eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0" />
+                <circle cx="12" cy="12" r="3" />
+              </svg>
+              <svg id="eyeOff" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" hidden>
+                <path d="M10.733 5.076a10.744 10.744 0 0 1 11.205 6.575 1 1 0 0 1 0 .696 10.747 10.747 0 0 1-1.444 2.49" />
+                <path d="M14.084 14.158a3 3 0 0 1-4.242-4.242" />
+                <path d="M17.479 17.499a10.75 10.75 0 0 1-15.417-5.151 1 1 0 0 1 0-.696 10.75 10.75 0 0 1 4.446-5.143" />
+                <path d="m2 2 20 20" />
+              </svg>
+            </button>
+          </div>
+          <div class="actions">
+            <button id="copy" type="button">复制</button>
+            <button id="apply" class="primary" type="button">填入页面</button>
+          </div>
+          <div id="save" hidden>
+            <p id="saveHint" class="save-hint">确认操作成功后，再保存新密码。</p>
+            <div id="saveUsername">
+              <label for="username">登录账号</label>
+              <input id="username" type="text" autocomplete="off" placeholder="邮箱或用户名" />
+            </div>
+            <button id="saveEntry" type="button">操作成功，保存到密码匣</button>
+          </div>
+        </div>
+      </section>
+    </main>
+    <script src="i18n.js"></script>
+    <script src="suggest.js"></script>
+  </body>
+</html>

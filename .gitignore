@@ -1,0 +1,9 @@
+# Never commit local vaults, backups, or generated archives.
+*.vault.json
+*.password-vault.json
+*.backup.json
+*.zip
+*.tar.gz
+node_modules/
+.DS_Store
+Thumbs.db

@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="password-vault-web" content="true">
+  <meta name="description" content="密码匣：本机优先的开源密码管理器，使用主密码加密账号，支持浏览器扩展、WSL/Linux 自托管和跨设备同步。">
+  <meta name="keywords" content="密码管理器,密码匣,password manager,本机优先,自托管,浏览器扩展,WSL,跨设备同步">
+  <meta name="author" content="kangshifuSteven">
+  <meta name="theme-color" content="#1f766e">
+  <meta property="og:title" content="密码匣 - 开源密码管理器">
+  <meta property="og:description" content="主密码加密、本机保存、可选自托管同步的开源密码管理器。">
+  <meta property="og:type" content="website">
+  <title>密码匣｜开源密码管理器</title>
+  <link rel="stylesheet" href="/web/style.css">
+  <script defer src="/i18n.js"></script>
+  <script defer src="/crypto.js"></script>
+  <script defer src="/sync.js"></script>
+  <script defer src="/web/app.js"></script>
+</head>
+<body>
+  <header class="app-header">
+    <div class="header-inner">
+      <div class="brand"><strong>密码匣</strong><span>保险库</span></div>
+      <div class="header-actions"><label class="language-control"><span class="sr-only">选择语言</span><select id="languageSelect" aria-label="选择语言"><option value="zh-CN">中文</option><option value="en">English</option></select></label><button id="guideButton" type="button" class="help-button" aria-label="使用指导" title="使用指导">?</button><button id="lockButton" type="button" class="plain-button" hidden>锁定</button></div>
+    </div>
+  </header>
+  <main>
+    <dialog id="guideDialog" class="guide-dialog" aria-labelledby="guideDialogTitle">
+      <div class="guide-dialog-heading"><h2 id="guideDialogTitle">使用指导</h2><button id="guideClose" type="button" class="plain-button">关闭</button></div>
+      <dl>
+        <dt>打开保险库</dt><dd>本机输入主密码即可解锁；远程设备还需填写自己的设备令牌。</dd>
+        <dt>导入密码文件</dt><dd>选择密码匣“备份”页导出的加密 JSON，不是浏览器导出的明文 CSV。已有账号时先核对；合并会保留服务器独有账号，覆盖会替换当前账号。</dd>
+        <dt>同步</dt><dd>读取服务器最新账号。保存和删除账号后会自动写入服务器。</dd>
+        <dt>下载密码文件</dt><dd>保存当前或历史版本的加密文件，打开仍需该版本的主密码。它不能用来重设忘记的主密码。</dd>
+        <dt>恢复历史</dt><dd>把服务器账号恢复到所选版本；其他设备需要重新加入。</dd>
+        <dt>设备</dt><dd>生成、撤销设备令牌；更换管理员令牌后本机扩展会重新配对。</dd>
+      </dl>
+    </dialog>
+    <p id="notice" class="notice" role="status" aria-live="polite" hidden></p>
+    <section id="loginView" class="login-view" aria-labelledby="loginTitle">
+      <h1 id="loginTitle">打开保险库</h1>
+      <form id="loginForm" class="form-stack">
+        <label id="tokenLabel">服务器访问令牌<input id="token" type="password" autocomplete="off" required spellcheck="false"></label>
+        <label>主密码<input id="masterPassword" type="password" autocomplete="current-password" required></label>
+        <label id="clientPasswordLabel" hidden>导入文件的主密码（不同时填写）<input id="clientPassword" type="password" autocomplete="off"></label>
+        <label id="confirmLabel" hidden>再次输入主密码<input id="masterConfirm" type="password" autocomplete="new-password"></label>
+        <button id="loginButton" class="primary-button" type="submit">解锁</button>
+        <input id="clientVaultFile" type="file" accept="application/json,.json" hidden>
+        <button id="importClientButton" class="plain-button" type="button" title="选择密码匣导出的加密密码文件，不是浏览器 CSV">导入密码文件</button>
+      </form>
+      <p id="tokenHelp" class="small-note">远程设备填写自己的设备令牌。导入密码文件时，请选择密码匣导出的加密 JSON。</p>
+      <section id="importReview" class="import-review" hidden aria-label="导入预览">
+        <h2>核对导入内容</h2>
+        <p id="importSummary"></p>
+        <div id="importList" class="import-list"></div>
+        <div class="import-choices">
+          <label><input type="radio" name="importMode" value="merge" checked>合并并更新相同账号</label>
+          <label><input type="radio" name="importMode" value="replace">用导入文件替换服务器上的全部账号</label>
+        </div>
+        <div class="review-actions">
+          <button id="confirmImport" type="button" class="primary-button">确认导入</button>
+          <button id="cancelImport" type="button" class="plain-button">暂不导入</button>
+        </div>
+      </section>
+    </section>
+    <section id="vaultView" class="vault-view" hidden aria-label="账号保险库">
+      <nav class="vault-tabs" aria-label="保险库视图">
+        <button id="accountsTab" type="button" aria-current="page">账号</button>
+        <button id="historyTab" type="button">历史</button>
+        <button id="devicesTab" type="button" hidden>设备</button>
+      </nav>
+      <section id="accountsView" aria-label="账号">
+      <div class="vault-toolbar">
+        <div class="vault-title"><h1>账号</h1><span id="entryCount" class="muted"></span></div>
+        <div class="toolbar-actions">
+          <button id="newButton" type="button" class="primary-button">添加账号</button>
+          <details id="toolbarMenu" class="toolbar-menu">
+            <summary aria-label="更多操作" title="更多操作">&#8943;</summary>
+            <div class="toolbar-menu-items">
+              <button id="refreshButton" type="button" title="读取服务器上的最新账号">同步</button>
+              <button id="exportButton" type="button" title="下载当前账号的加密密码文件，打开仍需主密码">下载密码文件</button>
+            </div>
+          </details>
+        </div>
+      </div>
+      <div class="workspace">
+        <aside class="account-list" aria-label="账号列表">
+          <label class="search-label"><span class="sr-only">搜索账号</span><input id="search" type="search" placeholder="搜索网站或账号" autocomplete="off"></label>
+          <div id="entries" class="entries"></div>
+        </aside>
+        <section class="account-detail" aria-label="账号详情">
+          <div id="emptyDetail" class="empty-detail">选择一个账号，或添加新账号</div>
+          <form id="entryForm" class="entry-form" hidden>
+            <div class="detail-heading">
+              <button id="backButton" class="plain-button back-button" type="button">返回列表</button>
+              <h2 id="detailTitle">账号</h2>
+              <button id="deleteButton" class="danger-button" type="button">删除</button>
+            </div>
+            <div class="form-stack">
+              <div class="kind-switch" role="group" aria-label="账号类型">
+                <label><input type="radio" name="entryKind" value="site" checked><span>网站</span></label>
+                <label><input type="radio" name="entryKind" value="app"><span>App</span></label>
+              </div>
+              <label>名称<input id="entryName" type="text" maxlength="100" autocomplete="off" required></label>
+              <label><span id="entrySiteLabel">网站域名</span><input id="entrySite" type="text" inputmode="url" maxlength="253" autocomplete="off" placeholder="example.com" required></label>
+              <label>用户名或邮箱<input id="entryUsername" type="text" maxlength="320" autocomplete="off" required></label>
+              <label>密码
+                <span class="password-row">
+                  <input id="entryPassword" type="password" maxlength="1000" autocomplete="new-password" required>
+                  <button id="showPassword" class="icon-button" type="button" aria-label="显示密码" title="显示密码">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/><circle cx="12" cy="12" r="3"/></svg>
+                  </button>
+                </span>
+              </label>
+              <div class="field-actions">
+                <button id="generateButton" type="button" class="plain-button">生成密码</button>
+                <button id="copyButton" type="button" class="plain-button">复制密码</button>
+              </div>
+              <label class="checkbox-label"><input id="subdomains" type="checkbox">允许子域名匹配</label>
+              <div class="save-row"><button id="saveButton" class="primary-button" type="submit">保存</button></div>
+            </div>
+          </form>
+        </section>
+      </div>
+      </section>
+      <section id="historyView" class="management-view" aria-label="历史版本" hidden>
+        <div class="management-heading"><h1>历史版本</h1><button id="downloadCurrent" type="button" class="plain-button" title="保存当前账号的加密文件，打开仍需主密码">下载当前版本</button></div>
+        <div id="historyList" class="management-list"></div>
+        <div id="historyDetail" class="management-detail" hidden>
+          <h2 id="historyTitle"></h2>
+          <p id="historySummary" class="muted"></p>
+          <button id="downloadSnapshot" type="button" class="plain-button" title="保存所选历史版本的加密文件，打开需该版本的主密码">下载此版本</button>
+          <form id="restoreForm" class="management-form" hidden>
+            <label>当前主密码<input id="restorePassword" type="password" autocomplete="current-password" required></label>
+            <label class="checkbox-label"><input id="restoreConfirm" type="checkbox" required>已下载当前版本，并知晓其他设备需要重新加入</label>
+            <button id="restoreButton" type="submit" class="danger-button">恢复此版本</button>
+          </form>
+        </div>
+      </section>
+      <section id="devicesView" class="management-view" aria-label="设备访问" hidden>
+        <div class="management-heading"><h1>设备访问</h1><button id="rotateAdminToken" type="button" class="plain-button">更换管理员令牌</button></div>
+        <form id="deviceForm" class="management-form">
+          <label>新设备名称<input id="deviceName" type="text" maxlength="60" autocomplete="off" placeholder="例如：手机"></label>
+          <button id="createDevice" type="submit" class="primary-button">生成设备令牌</button>
+        </form>
+        <div id="issuedDevice" class="issued-device" hidden>
+          <label>新令牌仅显示这一次<input id="issuedToken" type="text" readonly spellcheck="false"></label>
+          <button id="copyDeviceToken" type="button" class="plain-button">复制令牌</button>
+        </div>
+        <div id="deviceList" class="management-list"></div>
+      </section>
+    </section>
+  </main>
+  <footer class="app-footer">密码匣 · &copy; 2026 <a href="https://github.com/kangshifuSteven/password-vault" rel="noopener noreferrer">kangshifuSteven</a> · <a href="https://github.com/kangshifuSteven/password-vault/blob/main/LICENSE" rel="noopener noreferrer">MPL-2.0</a></footer>
+</body>
+</html>

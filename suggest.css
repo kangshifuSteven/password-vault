@@ -1,0 +1,42 @@
+:root { color-scheme:light; font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; color:#202733; background:#fff; }
+* { box-sizing:border-box; }
+body { margin:0; min-width:340px; }
+main { padding:18px; }
+header { border-bottom:1px solid #e1e5e9; padding-bottom:13px; margin-bottom:16px; }
+h1 { margin:0; font-size:17px; font-weight:700; }
+header p { margin:5px 0 0; color:#687483; font-size:12px; overflow-wrap:anywhere; }
+p { font-size:12px; line-height:1.5; }
+#notice { color:#a03e3e; font-size:12px; line-height:1.5; margin-bottom:8px; }
+#notice:empty { display:none; }
+.rules { color:#526171; margin:0 0 14px; }
+.warning { color:#8a5d19; background:#fff8e9; border-left:2px solid #bc8431; padding:8px 10px; margin:0 0 12px; }
+.risk { color:#8a5d19; margin:7px 0 4px; }
+details { margin:0 0 12px; color:#687483; font-size:11px; }
+details summary { cursor:pointer; }
+details p { margin:5px 0 0; font-size:11px; }
+#accountOptions { margin-bottom:12px; }
+.mode-switch { display:grid; grid-template-columns:1fr 1fr; border:1px solid #cbd6d6; border-radius:4px; overflow:hidden; margin-bottom:14px; }
+.mode-switch button { border:0; border-radius:0; background:#fff; color:#526171; padding:10px 4px; font-weight:600; }
+.mode-switch button[aria-pressed="true"] { color:#17685e; background:#eaf5f2; }
+.mode-switch button + button { border-left:1px solid #cbd6d6; }
+label { display:block; margin-bottom:5px; font-size:12px; font-weight:600; color:#526171; }
+.suggest-header-row { display:flex; align-items:center; justify-content:space-between; gap:10px; }
+.language-control { display:inline-flex; align-items:center; margin:0; }
+.language-control select { width:auto; min-width:68px; padding:5px 7px; }
+input, select { width:100%; border:1px solid #cbd4dc; border-radius:4px; padding:9px 10px; background:#fff; color:#202733; font:13px system-ui,sans-serif; }
+button { cursor:pointer; border:1px solid #cbd4dc; border-radius:4px; padding:9px 12px; background:#fff; color:#36505c; font:600 12px system-ui,sans-serif; }
+button:hover { background:#eff5f3; }
+button:disabled { cursor:not-allowed; opacity:.55; }
+.primary { border-color:#24756b; background:#24756b; color:#fff; }
+.primary:hover { background:#1c625a; }
+#generate { width:100%; margin:3px 0 15px; }
+#result { border-top:1px solid #e1e5e9; padding-top:14px; }
+.password-row { display:flex; gap:6px; }
+.password-row input { min-width:0; flex:1; }
+.password-row button { display:grid; place-items:center; width:38px; padding:0; }
+.password-row svg { width:18px; height:18px; }
+.actions { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:9px; }
+#save { border-top:1px solid #e1e5e9; margin-top:15px; padding-top:9px; }
+.save-hint { color:#687483; margin:0 0 10px; }
+#saveEntry { width:100%; margin-top:9px; }
+[hidden] { display:none !important; }

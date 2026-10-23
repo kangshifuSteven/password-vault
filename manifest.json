@@ -1,0 +1,42 @@
+{
+  "manifest_version": 3,
+  "name": "密码匣",
+  "version": "0.1.0",
+  "description": "用主密码保护你的登录信息，并按网站安全填充。",
+  "author": "kangshifuSteven",
+  "homepage_url": "https://github.com/kangshifuSteven/password-vault",
+  "permissions": ["storage", "clipboardWrite", "alarms", "contextMenus"],
+  "host_permissions": ["<all_urls>"],
+  "background": {
+    "scripts": ["crypto.js", "sync.js", "background.js"],
+    "service_worker": "background.js"
+  },
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "password-vault@kangshifusteven.github",
+      "strict_min_version": "142.0",
+      "data_collection_permissions": { "required": ["none"] }
+    },
+    "gecko_android": {}
+  },
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'"
+  },
+  "action": {
+    "default_title": "密码匣",
+    "default_popup": "popup.html"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "css": ["content.css"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["http://127.0.0.1/*", "http://localhost/*"],
+      "js": ["web-bridge.js"],
+      "run_at": "document_start"
+    }
+  ]
+}
