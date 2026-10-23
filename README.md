@@ -1,77 +1,49 @@
 # 密码匣 Password Vault｜无需购买服务器的开源密码管理工具
 
-不想把所有密码留在某个浏览器账号里，又不想为了自托管购买云服务器？密码匣是一款本机优先的开源密码管理工具：装上浏览器扩展就能离线使用；需要同步时，让现有 Windows 电脑的 WSL、Mac 或 Linux 设备保存加密保险库。**无需购买服务器、注册第三方密码服务，也无需 Docker 或数据库。**若要从外网随时取回账号，可以把同一服务部署到自己可访问的设备，并配置 HTTPS。
+密码匣让密码库留在自己手里：浏览器扩展可独立离线使用；需要跨设备同步时，在自己的 Windows（WSL）、macOS 或 Linux 设备上运行轻量服务。账号数据加密后存储，不依赖第三方在线密码网站。
 
-Password Vault is an open-source, local-first password manager with a browser extension, encrypted backups, and optional self-hosted sync on WSL, macOS, or Linux.
+Password Vault is a local-first, open-source password manager with a browser extension, encrypted backups, and optional self-hosted sync.
 
 [![Latest release](https://img.shields.io/github/v/release/kangshifuSteven/password-vault?display_name=tag)](https://github.com/kangshifuSteven/password-vault/releases)
 [![License](https://img.shields.io/badge/license-MPL--2.0-blue.svg)](LICENSE)
 
-当前版本：**0.1.0**
+## 为什么选择密码匣
 
-## 密码匣能帮你省掉什么
+- **装上扩展就能用。** 保存、搜索、生成和填充网站密码；登录、注册或改密后尝试自动更新记录。可从账号列表打开网站，并导入浏览器密码 CSV。
+- **现有电脑就能存储和同步。** 可选的 Node.js 服务不需要 Docker 或数据库；扩展保存账号后自动同步加密保险库。服务离线时，常用电脑仍可使用本机保险库。
+- **密码库可以带走。** 加密密码文件用于迁移；独立恢复备份和恢复私钥可在忘记主密码时重建保险库，备份由自己保管。
+- **临时电脑按需使用。** 切换到只读临时模式，从加密密码文件或自己的 HTTPS 服务取回账号，查看和填充后锁定，无需在该浏览器建立长期保险库。
 
-- **省掉一台付费服务器。**已有电脑安装 Node.js 即可运行轻量同步端；扩展自动上传加密后的保险库。电脑关机时远程同步暂停，本机扩展仍可离线使用。
-- **省掉对在线密码网站的依赖。**桌面以插件填充和管理密码，不开服务端也能使用；主密码和独立恢复备份由自己保管。
-- **省掉迁移时从零开始。**可导入浏览器密码 CSV，换电脑或浏览器时用加密恢复文件与恢复私钥找回数据。卸载扩展前必须先保存这两份备份，卸载可能删除本地保险库。
-- **临时电脑也能查用账号。**切换“临时使用”，从加密密码文件或自己的 HTTPS 服务读取账号；只查看和填充，锁定后不在该浏览器保留保险库。
-- **从账号直达网站。**在密码匣找到网站账号后点“打开网站”，跳转到对应站点，再使用匹配填充。
+## 界面预览
 
-## 与常见密码管理方式相比
+| 桌面扩展 | 网页保险库 |
+| :---: | :---: |
+| ![密码匣桌面扩展账号列表](docs/screenshots/extension-popup.png) | ![密码匣网页保险库](docs/screenshots/web-vault.png) |
 
-| 常见方案 | 它擅长什么 | 密码匣多解决的一步 |
-| --- | --- | --- |
-| [Google 密码管理工具](https://support.google.com/chrome/answer/95606)等浏览器内置工具 | 不用另装扩展，也支持导出密码 | 独立主密码和加密恢复备份；可把密文同步到自己的电脑，迁移不依赖原浏览器的同步账号。 |
-| [Bitwarden](https://bitwarden.com/help/self-host-bitwarden/)等云端或自托管服务 | 功能丰富，也提供自托管方案 | 个人用户直接在现有电脑上启动 Node.js 服务，无需 Docker、数据库或购买服务器；断线后扩展仍能用本机保险库。 |
-| [KeePassXC](https://keepassxc.org/docs/KeePassXC_GettingStarted)等本地密码库 | 离线数据库和浏览器集成 | 内置轻量服务端，扩展保存后自动同步密文；手机用网页手动管理，无需另配数据库文件同步。 |
+[查看手机账号页](docs/screenshots/mobile-vault.png) · [查看手机解锁页](docs/screenshots/mobile-login.png)
 
-## 目前能做什么
+## 开始使用
 
-- 为网站和 App 保存独立账号，搜索、编辑、复制和生成密码。
-- 从网站账号直接打开对应网站；临时模式可在其他电脑上只读查看和填充。
-- Chrome、Edge 桌面扩展支持匹配填充，并尝试记录登录、注册和改密结果。
-- 导入浏览器 CSV；导出加密密码文件，以及公钥加密的独立恢复备份。
-- 可选 WSL/macOS/Linux 自托管同步；网页端适合手机浏览器、平板和其他设备。当前默认连接本机服务；同一服务也能由用户自行部署到可远程访问的设备，并配置 HTTPS。本项目目前不提供托管的远程服务。
-- 本机优先，服务器只保存加密保险库；多设备修改自动合并，冲突时由用户选择。
+从 [v0.1.0 发布页](https://github.com/kangshifuSteven/password-vault/releases/tag/v0.1.0) 下载对应文件；源码包和 SHA-256 校验文件也在该页面。
 
-## 预览
+### 1. 安装桌面扩展
 
-![桌面扩展](docs/screenshots/extension-popup.png)
-![网页保险库](docs/screenshots/web-vault.png)
-![手机解锁](docs/screenshots/mobile-login.png)
-![手机网页](docs/screenshots/mobile-vault.png)
+- **Chrome / Edge（Windows、macOS、Linux）：**下载 `password-vault-v0.1.0-chrome-edge.zip`，解压到固定目录。在 `chrome://extensions` 或 `edge://extensions` 开启开发者模式，选择“加载已解压的扩展”，指向包含 `manifest.json` 的目录。
+- **Firefox 142+（桌面）：**下载 `password-vault-v0.1.0-firefox.zip` 并解压。在 `about:debugging#/runtime/this-firefox` 选择“临时载入附加组件”，选中 `manifest.json`。重启 Firefox 后需重新载入；目前没有长期安装的签名包。
 
-## 安装与启动
+打开扩展，设置至少 **12 位主密码**，建议使用更长且独一无二的密码短语。随后在“备份”页分别保存**加密恢复文件**与**恢复私钥**。首次使用会显示操作引导。
 
-从 [Releases](https://github.com/kangshifuSteven/password-vault/releases/tag/v0.1.0) 下载 `0.1.0`：
+更新扩展时替换**原安装目录中的文件**，然后在扩展管理页点“重新加载”；不要加载第二份目录。卸载前先备份，浏览器可能同时删除本地保险库。
 
-| 文件 | 用途 |
-| --- | --- |
-| `password-vault-v0.1.0-chrome-edge.zip` | Windows、macOS、Linux 的 Chrome / Edge 扩展 |
-| `password-vault-v0.1.0-firefox.zip` | 桌面 Firefox 扩展，当前需临时加载 |
-| `password-vault-v0.1.0-server-wsl.tar.gz` | WSL、macOS、Linux 通用的 Node.js 服务端 |
-| `password-vault-v0.1.0-source.zip` | 完整源码 |
-| `password-vault-v0.1.0-checksums.txt` | 下载文件的 SHA-256 校验值 |
+### 2. 启动自己的同步服务（可选）
 
-### Windows、macOS、Linux：桌面扩展
+只用扩展无需启动服务。需要同步时，在运行服务的设备上安装 [Node.js 22+](https://nodejs.org/en/download)：
 
-1. 使用 Chrome 或 Edge 时，解压 `chrome-edge.zip` 到固定目录。打开 `chrome://extensions` 或 `edge://extensions`，开启“开发者模式”，选择“加载已解压的扩展”，选中包含 `manifest.json` 的目录。Mac 不需要 WSL 就能用扩展。
-2. 使用 Firefox 142+ 桌面版时，解压 `firefox.zip`，打开 `about:debugging#/runtime/this-firefox`，点“临时载入附加组件”，选择 `manifest.json`。**Firefox 重启后需要重新载入**；当前没有可长期安装的签名包。
-3. 首次打开扩展，创建至少 12 位主密码，建议使用更长、独一无二的密码短语；在“备份”页分别保存加密恢复文件和恢复私钥。
+- **Windows：**在管理员 PowerShell 执行 `wsl --install -d Ubuntu`，重启后进入 Ubuntu，并在 **Ubuntu 内**安装 Node.js 22+。已有 WSL 可跳过安装。
+- **macOS：**直接在 Mac 上安装 Node.js 22+，打开“终端”；无需 WSL。
+- **Linux：**安装 Node.js 22+，打开终端。
 
-首次打开会显示操作引导。更新扩展时替换**原目录中的文件**，再在扩展管理页点“重新加载”；不要移除原扩展或加载第二份目录。卸载前先备份，否则浏览器可能一并删除本地保险库。
-
-### Windows、macOS、Linux：启动自己的同步服务（可选）
-
-只用扩展无需启动服务端。需要备份和跨设备同步时，先按自己的系统安装 [Node.js 22 或更新版本](https://nodejs.org/en/download)：
-
-| 系统 | 准备方式 |
-| --- | --- |
-| Windows | 在管理员 PowerShell 运行 `wsl --install -d Ubuntu`（已安装可跳过），按提示重启后打开 Ubuntu；**在 Ubuntu 内**安装 Node.js 22+。参见 [WSL 安装说明](https://learn.microsoft.com/windows/wsl/install)。 |
-| macOS | 在 Mac 上安装 Node.js 22+，打开“终端”；不需要 WSL。 |
-| Linux | 在 Linux 上安装 Node.js 22+，打开终端。 |
-
-在 Ubuntu、macOS 或 Linux 的终端运行以下命令。服务端包虽然名为 `server-wsl`，也适用于 Mac 和 Linux：
+在 Ubuntu、macOS 或 Linux 终端执行以下命令。发布文件名中的 `server-wsl` 也适用于 macOS 和 Linux：
 
 ```sh
 VERSION=0.1.0
@@ -82,34 +54,33 @@ cd "$HOME/password-vault"
 node server/server.mjs
 ```
 
-保持终端和电脑运行。在同一电脑打开 `http://127.0.0.1:39871/`；扩展解锁后会自动连接本机服务，网页端在同一浏览器共享解锁状态。需要异地使用时，可把同一服务放在自己持续在线的设备上，通过 HTTPS 访问并使用设备令牌；本项目目前没有可直接登录的公共远程服务。详细设置、重启和 HTTPS 访问见 [服务端说明](server/README.md)。
+服务运行时，同机打开 `http://127.0.0.1:39871/`。扩展解锁后默认自动连接本机服务；同一浏览器的本机网页可共享解锁状态。电脑关机或服务停止后无法远程同步，但扩展中的本地账号仍可使用。
 
-### 临时电脑：只读取回账号
+**远程使用由用户自行部署。** 同一服务也可以运行在自己可访问、持续在线的设备上，通过 HTTPS 入口和设备令牌供其他设备连接；本项目目前不提供托管的远程服务。部署 HTTPS、重启和数据目录说明见 [服务端文档](server/README.md)。
 
-在扩展解锁页切换到“临时使用”，选择其中一种来源：
+### 3. 在其他设备使用
 
-1. **密码文件：**在常用电脑的“备份”页先点“导出密码文件”，把加密 JSON 带到临时电脑，输入原主密码。不要在临时电脑使用恢复私钥。
-2. **自建服务器：**你的服务已通过 HTTPS 对外可用时，输入 HTTPS 地址、该设备的令牌和原主密码，直接读取服务器上的加密保险库，无需先下载文件。令牌可在服务网页的“设备”页创建。
+- **另一台自己的桌面电脑：**安装扩展，从自建服务加入现有保险库；没有服务时，用加密恢复文件和恢复私钥恢复。
+- **临时电脑：**在扩展解锁页切换“临时使用”。可选择常用电脑在“备份”页导出的加密密码文件，或输入自己的 HTTPS 服务地址、设备令牌和主密码。临时模式只读，5 分钟无操作后锁定；离开前主动锁定并清理下载文件。
+- **手机、平板、macOS Safari：**远程打开自建服务的 HTTPS 网页，输入设备令牌和主密码，手动查看、添加或复制网站及 App 账号。同机 Safari 可打开本机地址。网页目前无法为其他网站或 App 自动填充。
 
-临时模式只供查看、复制、打开网站和匹配填充；不能添加、修改或同步账号。5 分钟无操作会锁定。离开前主动锁定、关闭浏览器，并删除临时电脑上的下载文件。临时设备若装有窃密软件，仍可能记录输入或复制的密码。
+临时电脑可能安装窃密软件；临时模式无法防止键盘记录、屏幕录制或剪贴板监控。**不要把恢复私钥带到临时电脑。**
 
-### 手机、平板和 Safari
+## 与常见工具相比
 
-手机浏览器（包括夸克）、iPad、鸿蒙浏览器和 Mac Safari 使用服务端网页，**无需安装桌面扩展**。在服务端电脑的“设备”页创建设备令牌；为服务端配置 HTTPS 入口后，在其他设备打开该 HTTPS 地址，输入设备令牌和主密码。网站及 App 账号可手动添加、查看和复制；当前不支持这些浏览器及手机 App 的自动填充或自动记录。Mac Safari 在同一电脑可直接打开上述本机地址。
+| 工具 | 密码匣适合的场景 |
+| --- | --- |
+| [Google 密码管理工具](https://support.google.com/chrome/answer/95606)等浏览器内置工具 | 想让主密码、恢复备份和可选同步服务独立于浏览器账号，并能把数据迁到自己的设备。 |
+| [Bitwarden](https://bitwarden.com/help/self-host-bitwarden/)等云端或自托管服务 | 只需个人轻量使用，希望直接在已有电脑运行 Node.js 服务，不配置 Docker 或数据库。 |
+| [KeePassXC](https://keepassxc.org/docs/KeePassXC_GettingStarted)等本地密码库 | 希望浏览器扩展自动同步密文，并通过自建网页在手机上手动管理账号。 |
 
-网页端已在 Chromium、Firefox、WebKit 内核和 280-1200px 宽度下测试；macOS 服务端通过 CI 启动及同步测试，Mac 浏览器和鸿蒙设备尚未做实机验证。Safari 扩展、Passkey、TOTP 和泄露库查询暂未提供。
+密码匣不是这些工具的完整替代品：手机浏览器和 App 目前不能自动填充或自动记录；Safari 扩展、Passkey、TOTP 和泄露库查询尚未提供。网页端已在 Chromium、Firefox、WebKit 内核及 280-1200px 宽度下测试；macOS 服务端通过 CI 检查，Mac 浏览器、夸克和鸿蒙设备尚未做实机验证。
 
-## 文档
+## 文档与开发
 
-- [更新日志](CHANGELOG.md)
-- [安全说明](SECURITY.md)
-- [服务端安装与 HTTPS](server/README.md)
-- [MPL-2.0 许可证](LICENSE)
-- [作者与发布来源](NOTICE.md)
+[更新日志](CHANGELOG.md) · [安全说明](SECURITY.md) · [服务端安装与 HTTPS](server/README.md) · [作者与发布来源](NOTICE.md) · [MPL-2.0 许可证](LICENSE)
 
-## 开发
-
-需要 Node.js 22 或更新版本：
+使用 Node.js 22+ 运行检查：
 
 ```sh
 node release-check.mjs
@@ -117,8 +88,4 @@ node tests/sync.test.mjs
 node tests/firefox-compat.test.mjs
 ```
 
-请勿提交真实保险库、恢复文件、访问令牌或浏览器导出的明文 CSV。
-
-## 许可证
-
-项目采用 [MPL-2.0](LICENSE)。第三方图标许可见 [LUCIDE-LICENSE](LUCIDE-LICENSE)。
+请勿提交真实保险库、恢复文件、访问令牌或浏览器导出的明文 CSV。第三方图标许可见 [LUCIDE-LICENSE](LUCIDE-LICENSE)。
