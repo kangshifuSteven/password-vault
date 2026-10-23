@@ -108,7 +108,7 @@ function setTab(tab) {
 function setAccessMode(mode) {
   accessMode = mode === "portable" ? "portable" : "local";
   const awaitingUnlock = currentMode === "setup" || currentMode === "locked";
-  $("accessModeSwitch").hidden = !awaitingUnlock;
+  $("accessModeSwitch").hidden = !["setup", "locked", "unlocked"].includes(currentMode);
   $("localModeButton").setAttribute("aria-pressed", String(accessMode === "local"));
   $("portableModeButton").setAttribute("aria-pressed", String(accessMode === "portable"));
   $("setupView").hidden = currentMode !== "setup" || accessMode !== "local";
@@ -685,8 +685,21 @@ for (const radio of document.querySelectorAll('input[name="portableSource"]')) {
     showNotice();
   });
 }
-$("localModeButton").addEventListener("click", () => { setAccessMode("local"); showNotice(); });
-$("portableModeButton").addEventListener("click", () => { setAccessMode("portable"); showNotice(); });
+async function chooseAccessMode(mode) {
+  if (mode === accessMode) return;
+  if (currentMode === "unlocked") {
+    const result = await send({ type: "lock" });
+    if (showActionError(result)) return;
+    accessMode = mode;
+    await refresh();
+  } else {
+    setAccessMode(mode);
+  }
+  showNotice();
+}
+
+$("localModeButton").addEventListener("click", () => chooseAccessMode("local"));
+$("portableModeButton").addEventListener("click", () => chooseAccessMode("portable"));
 $("recoveryFile").addEventListener("change", () => updateRecoveryInput(
   "recoveryFile", "recoveryPrivateKeyLabel", "recoveryPasswordLabel",
   "recoveryPrivateKeyFile", "recoveryPassword"));

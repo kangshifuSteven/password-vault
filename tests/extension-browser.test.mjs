@@ -98,6 +98,8 @@ try {
   assert.equal(saved.entry.site, "example.com");
   await page.reload();
   await page.locator("#entryList .entry-card").first().waitFor({ state: "visible" });
+  assert.equal(await page.locator("#accessModeSwitch").isVisible(), true);
+  assert.equal(await page.locator("#localModeButton").getAttribute("aria-pressed"), "true");
   assert.equal(await page.locator("#entryList .entry-card button").filter({ hasText: "打开网站" }).count(), 1);
   await context.route("https://example.com/**", (route) => route.fulfill({ status: 200, body: "Opened" }));
   const openedPage = context.waitForEvent("page");
@@ -136,19 +138,24 @@ try {
   const stored = await page.evaluate(() => browser.storage.local.get("vaultRecord"));
   assert(!JSON.stringify(stored).includes("extension-secret-test"));
   const vaultFile = (await page.evaluate(() => browser.runtime.sendMessage({ type: "exportVault" }))).record;
-  await page.evaluate(() => browser.runtime.sendMessage({ type: "lock" }));
-  await page.reload();
   await page.locator("#portableModeButton").click();
+  await page.locator("#portableView").waitFor({ state: "visible" });
+  assert.equal((await page.evaluate(() => browser.runtime.sendMessage({ type: "getState" }))).mode, "locked");
+  assert.equal(await page.locator("#portableModeButton").getAttribute("aria-pressed"), "true");
   await page.locator("#ephemeralFile").setInputFiles({ name: "vault.json",
     mimeType: "application/json", buffer: Buffer.from(JSON.stringify(vaultFile)) });
   await page.locator("#ephemeralPassword").fill("long master password for extension test");
   await page.locator("#ephemeralForm button[type=submit]").click();
   await page.locator("#entryList .entry-card").first().waitFor({ state: "visible" });
   assert.equal((await page.evaluate(() => browser.runtime.sendMessage({ type: "getState" }))).ephemeral, true);
+  assert.equal(await page.locator("#accessModeSwitch").isVisible(), true);
+  assert.equal(await page.locator("#portableModeButton").getAttribute("aria-pressed"), "true");
   assert.equal(await page.locator("#entryList .entry-card button").filter({ hasText: "编辑" }).count(), 0);
   assert.deepEqual(await page.evaluate(() => browser.storage.local.get("vaultRecord")), stored);
-  await page.evaluate(() => browser.runtime.sendMessage({ type: "lock" }));
-  await page.reload();
+  await page.locator("#localModeButton").click();
+  await page.locator("#lockedView").waitFor({ state: "visible" });
+  assert.equal((await page.evaluate(() => browser.runtime.sendMessage({ type: "getState" }))).mode, "locked");
+  assert.equal(await page.locator("#localModeButton").getAttribute("aria-pressed"), "true");
   await page.locator("#portableModeButton").click();
   await page.locator('input[name="portableSource"][value="server"]').check();
   await page.locator("#portableRemoteUrl").fill(url);
