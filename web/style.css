@@ -126,8 +126,11 @@ input:focus-visible, button:focus-visible { outline: 2px solid #24756b; outline-
 .entry-form .form-stack > :nth-child(1), .entry-form .form-stack > :nth-child(2), .entry-form .form-stack > :nth-child(n+5) { grid-column: 1 / -1; }
 .entry-form .kind-switch { max-width: 240px; }
 .save-row button { min-width: 140px; }
-.detail-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 18px; }
-.detail-heading h2 { flex: 1; overflow-wrap: anywhere; }
+.detail-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 18px; }
+.detail-title-row { display:flex; align-items:center; gap:10px; min-width:0; }
+.detail-heading h2 { min-width:0; overflow-wrap:anywhere; }
+.detail-actions { display:none; align-items:center; gap:8px; }
+.detail-actions:has(> button:not([hidden])) { display:flex; }
 .back-button { display: none; }
 .password-row { display: flex; }
 .password-row input { border-radius: 4px 0 0 4px; }
@@ -169,7 +172,9 @@ input:focus-visible, button:focus-visible { outline: 2px solid #24756b; outline-
   .vault-view.editor-open .account-list { display: none; }
   .vault-view.editor-open .vault-toolbar { display: none; }
   .back-button { display: inline-flex; align-items: center; }
-  .detail-heading { margin-bottom: 18px; }
+  .detail-heading { align-items:stretch; flex-direction:column; margin-bottom:18px; }
+  .detail-title-row { justify-content:space-between; }
+  .detail-actions { justify-content:space-between; }
 }
 @media (max-width: 390px) {
   .vault-toolbar { flex-wrap: wrap; }

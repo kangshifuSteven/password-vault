@@ -59,6 +59,11 @@ function requireUnlocked() {
   if (!session.key || !session.vault) throw new Error("LOCKED");
 }
 
+function requireWritableVault() {
+  requireUnlocked();
+  if (session.ephemeral) throw new Error("临时模式仅供查看和填充，不能修改账号");
+}
+
 async function saveSession() {
   if (!session.vault) return;
   await extensionApi.storage.session.set({
@@ -117,7 +122,7 @@ async function openSession(opened, record, ephemeral = false) {
 }
 
 async function persistVault() {
-  requireUnlocked();
+  requireWritableVault();
   const encrypted = await PasswordCrypto.encryptWithKey(session.key, session.vault);
   session.record = {
     ...(session.record || {}),
@@ -546,6 +551,7 @@ function matchingPendingEntry(value, kind) {
 }
 
 async function commitPendingLogin(tabId, pending, username) {
+  requireWritableVault();
   const value = await PasswordCrypto.decryptWithKey(session.key, pending);
   const normalizedUsername = String(username || "").trim().slice(0, 320);
   if (!normalizedUsername) throw new Error("请填写登录账号");
@@ -674,8 +680,8 @@ async function handleMessage(message, sender) {
     case "setup": {
       const existing = await storedRecord();
       if (existing) throw new Error("保险库已经存在");
-      if (!message.password || message.password.length < 16) {
-        throw new Error("主密码至少需要 16 个字符");
+      if (!message.password || message.password.length < 12) {
+        throw new Error("主密码至少需要 12 个字符");
       }
       const vault = { version: 1, entries: [] };
       const record = await PasswordCrypto.createRecord(message.password, vault);
@@ -721,6 +727,19 @@ async function handleMessage(message, sender) {
       await openSession(opened, record, true);
       return { mode: "unlocked", ephemeral: true };
     }
+    case "openPortableRemote": {
+      const url = VaultSync.endpoint(message.url);
+      const token = String(message.token || "").trim();
+      if (!/^[0-9a-f]{64}$/.test(token)) throw new Error("服务器令牌格式无效");
+      const remote = await remoteVault(url, token);
+      if (!remote.record) throw new Error("服务器还没有保险库");
+      const opened = await PasswordCrypto.openRecord(message.password || "", remote.record);
+      if (opened.value?.version !== 1 || !Array.isArray(opened.value.entries)) {
+        throw new Error("服务器保险库格式无效");
+      }
+      await openSession(opened, remote.record, true);
+      return { mode: "unlocked", ephemeral: true, count: opened.value.entries.length };
+    }
     case "exportVault":
       requireUnlocked();
       return { record: session.record, ephemeral: session.ephemeral };
@@ -733,7 +752,7 @@ async function handleMessage(message, sender) {
       if (!record || !record.iv || !record.ciphertext || (record.version !== 2 && !record.salt)) {
         throw new Error("加密恢复文件格式无效");
       }
-      if (!message.newPassword || message.newPassword.length < 16) throw new Error("新主密码至少需要 16 个字符");
+      if (!message.newPassword || message.newPassword.length < 12) throw new Error("新主密码至少需要 12 个字符");
       let opened;
       try {
         opened = await PasswordCrypto.openRecoveryRecord(
@@ -870,7 +889,7 @@ async function handleMessage(message, sender) {
       await extensionApi.alarms.clear(AUTO_SYNC_ALARM);
       return { connected: false };
     case "saveEntry": {
-      requireUnlocked();
+      requireWritableVault();
       const entry = message.entry || {};
       const normalized = {
         id: entry.id || newId(),
@@ -906,7 +925,7 @@ async function handleMessage(message, sender) {
       return { entry: normalized };
     }
     case "importEntries": {
-      requireUnlocked();
+      requireWritableVault();
       if (!Array.isArray(message.entries) || !message.entries.length) throw new Error("没有可导入的账号");
       const conflict = message.conflict === "replace" ? "replace" : "skip";
       let added = 0;
@@ -948,7 +967,7 @@ async function handleMessage(message, sender) {
       return { added, updated, skipped };
     }
     case "deleteEntry":
-      requireUnlocked();
+      requireWritableVault();
       session.vault.entries = session.vault.entries.filter((item) => item.id !== message.id);
       await persistVault();
       await markActivity();
@@ -976,6 +995,7 @@ async function handleMessage(message, sender) {
     }
     case "stageLogin": {
       requireUnlocked();
+      if (session.ephemeral) return { staged: false };
       const page = pageFromSender(sender);
       if (!page || !sender.tab?.id) throw new Error("仅网页表单支持保存登录信息");
       const username = String(message.username || "").trim().slice(0, 320);
@@ -995,7 +1015,7 @@ async function handleMessage(message, sender) {
       return { staged: true };
     }
     case "getPendingLogin": {
-      if (!session.vault || !sender.tab?.id) return { pending: null };
+      if (!session.vault || session.ephemeral || !sender.tab?.id) return { pending: null };
       const pending = await pendingLogin(sender.tab.id);
       if (!pending) return { pending: null };
       if (pending.frameId !== (sender.frameId || 0)) return { pending: null };
@@ -1018,6 +1038,7 @@ async function handleMessage(message, sender) {
     }
     case "getPendingLogins": {
       requireUnlocked();
+      if (session.ephemeral) return { pending: [] };
       const stored = await extensionApi.storage.session.get(null);
       const pending = [];
       for (const [key] of Object.entries(stored)) {

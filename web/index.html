@@ -93,9 +93,14 @@
           <div id="emptyDetail" class="empty-detail">选择一个账号，或添加新账号</div>
           <form id="entryForm" class="entry-form" hidden>
             <div class="detail-heading">
-              <button id="backButton" class="plain-button back-button" type="button">返回列表</button>
-              <h2 id="detailTitle">账号</h2>
-              <button id="deleteButton" class="danger-button" type="button">删除</button>
+              <div class="detail-title-row">
+                <button id="backButton" class="plain-button back-button" type="button">返回列表</button>
+                <h2 id="detailTitle">账号</h2>
+              </div>
+              <div class="detail-actions">
+                <button id="visitSiteButton" class="plain-button" type="button" hidden>打开网站</button>
+                <button id="deleteButton" class="danger-button" type="button">删除</button>
+              </div>
             </div>
             <div class="form-stack">
               <div class="kind-switch" role="group" aria-label="账号类型">

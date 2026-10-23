@@ -229,6 +229,16 @@
     }
   }
 
+  function siteUrl(value) {
+    const host = normalizeHost(value);
+    if (!host) return "";
+    try {
+      const url = new URL(`https://${host}`);
+      return url.hostname && !url.username && !url.password && url.pathname === "/" &&
+        !url.search && !url.hash ? url.href : "";
+    } catch { return ""; }
+  }
+
   globalThis.PasswordCrypto = {
     ITERATIONS,
     createRecord,
@@ -243,6 +253,7 @@
     normalizeHost,
     openRecord,
     openRecoveryRecord,
+    siteUrl,
     prfKey
   };
 })();

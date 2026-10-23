@@ -276,8 +276,8 @@
       if (!record) {
         if (clientRecord) {
           const clientPassword = $("clientPassword").value || password;
-          if (clientPassword !== password && password.length < 16) {
-            throw new Error("新的服务器主密码至少需要 16 位");
+          if (clientPassword !== password && password.length < 12) {
+            throw new Error("新的服务器主密码至少需要 12 位");
           }
           let imported;
           try { imported = await PasswordCrypto.openRecord(clientPassword, clientRecord); }
@@ -294,8 +294,8 @@
           notice("服务器还没有保险库。若已有浏览器账号，请先在扩展的“同步”页连接服务器；仅首次使用时在这里创建新库");
           return;
         }
-        if (password.length < 16 || password !== $("masterConfirm").value) {
-          throw new Error("主密码至少 16 位，且两次输入需一致");
+        if (password.length < 12 || password !== $("masterConfirm").value) {
+          throw new Error("主密码至少 12 位，且两次输入需一致");
         }
         record = await PasswordCrypto.createRecord(password, { version: 1, entries: [] });
         const saved = await request(token, "PUT", { expectedRevision: 0, record });
@@ -353,7 +353,7 @@
       let record = current.record;
       let savedRevision = current.revision;
       if (mode === "replace") {
-        if (password.length < 16) throw new Error("服务器主密码至少需要 16 位");
+        if (password.length < 12) throw new Error("服务器主密码至少需要 12 位");
         record = await PasswordCrypto.createRecord(password, importedVault);
       } else if (plan.added || plan.updated) {
         record = { ...record, ...await PasswordCrypto.encryptWithKey(serverOpened.key, plan.vault) };
@@ -418,6 +418,9 @@
     $("emptyDetail").hidden = true;
     $("detailTitle").textContent = entry ? "编辑账号" : "添加账号";
     $("deleteButton").hidden = !entry;
+    const siteUrl = entry?.kind === "app" ? "" : PasswordCrypto.siteUrl(entry?.site);
+    $("visitSiteButton").hidden = !siteUrl;
+    $("visitSiteButton").dataset.url = siteUrl;
     const kind = entry?.kind === "app" ? "app" : "site";
     document.querySelectorAll('input[name="entryKind"]').forEach((radio) => { radio.checked = radio.value === kind; });
     $("entryName").value = entry?.name || "";
@@ -827,6 +830,10 @@
   $("newButton").addEventListener("click", () => { if (state) selectEntry(null); });
   $("backButton").addEventListener("click", () => { if (confirmDiscard()) $("vaultView").classList.remove("editor-open"); });
   $("deleteButton").addEventListener("click", deleteEntry);
+  $("visitSiteButton").addEventListener("click", () => {
+    const url = $("visitSiteButton").dataset.url;
+    if (url) window.open(url, "_blank", "noopener,noreferrer");
+  });
   $("search").addEventListener("input", renderList);
   $("showPassword").addEventListener("click", () => {
     const visible = $("entryPassword").type === "password";

@@ -8,11 +8,13 @@
 
 ### 新增
 
-- 浏览器扩展、网页保险库和 WSL/Linux 自托管服务。
+- 浏览器扩展、网页保险库和 WSL/macOS/Linux 自托管服务。
 - 本机加密存储、跨设备密文同步、网站填充和登录信息自动保存。
 - 浏览器 CSV 导入、加密密码文件和独立恢复备份。
 - RSA-OAEP-3072 与 AES-256-GCM 混合加密的恢复备份，恢复私钥单独保存。
 - Chrome、Edge、Firefox、手机浏览器和平板网页端支持。
+- 临时模式可从加密密码文件或自建 HTTPS 服务只读取回账号；网站账号可从扩展和网页端直接打开。
+- 主密码最低长度调整为 12 位，并完善 Windows、macOS、Linux 的安装说明。
 - 中英文界面、同步状态提示、按平台发布包、SHA-256 校验和构建来源证明。
 
 [0.1.0]: https://github.com/kangshifuSteven/password-vault/releases/tag/v0.1.0

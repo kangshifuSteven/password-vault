@@ -163,6 +163,8 @@ try {
   await unlock(page, token, password);
   await page.getByRole("button", { name: /Test site/ }).click();
   assert.equal(await page.locator("#entryPassword").inputValue(), "secret-web-test");
+  assert.equal(await page.locator("#visitSiteButton").isVisible(), true);
+  assert.equal(await page.locator("#visitSiteButton").getAttribute("data-url"), "https://example.com/");
 
   const second = await context.newPage();
   await second.goto(url);

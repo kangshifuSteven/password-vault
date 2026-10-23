@@ -24,6 +24,7 @@
           <dt>导入</dt><dd>选择浏览器导出的 CSV，核对新增与重复账号后确认。原浏览器密码不会自动删除。</dd>
           <dt>恢复备份</dt><dd>备份文件和恢复私钥分别保存。忘记主密码时，用这两个文件重新设置。</dd>
           <dt>导出密码文件</dt><dd>用于在服务器网页导入账号。文件已加密，打开仍需当前主密码，不能用它重设忘记的主密码。</dd>
+          <dt>临时使用</dt><dd>切换到临时模式，从加密密码文件或自己的 HTTPS 服务取回账号；锁定后不留本地保险库。</dd>
           <dt>同步</dt><dd>连接自己的服务器，上传本机改动并取回最新账号。两边都有账号时先预览合并。</dd>
           <dt>锁定</dt><dd>清除当前解锁会话；下次使用需重新解锁。</dd>
         </dl>
@@ -37,6 +38,11 @@
         <button id="reloadButton" class="primary-button wide-button" type="button">重新加载扩展</button>
       </section>
 
+      <div id="accessModeSwitch" class="access-mode-switch" role="group" aria-label="使用方式" hidden>
+        <button id="localModeButton" type="button" aria-pressed="true">本机使用</button>
+        <button id="portableModeButton" type="button" aria-pressed="false">临时使用</button>
+      </div>
+
       <section id="setupView" class="view" hidden>
         <div class="section-copy">
           <h2>创建密码匣</h2>
@@ -44,8 +50,8 @@
         </div>
         <div class="setup-guide"><strong>第一次使用</strong><p>没有旧库就创建主密码；换电脑从已有服务器加入；有恢复文件则从下方恢复。新建不会带回旧账号。</p></div>
         <form id="setupForm" class="stack-form">
-          <label>主密码<input id="setupPassword" type="password" minlength="16" autocomplete="new-password" required placeholder="至少 16 个字符" /></label>
-          <label>再次输入<input id="setupConfirm" type="password" minlength="16" autocomplete="new-password" required placeholder="确认主密码" /></label>
+          <label>主密码<input id="setupPassword" type="password" minlength="12" autocomplete="new-password" required placeholder="至少 12 个字符" /></label>
+          <label>再次输入<input id="setupConfirm" type="password" minlength="12" autocomplete="new-password" required placeholder="确认主密码" /></label>
           <button class="primary-button" type="submit">创建并解锁</button>
         </form>
         <details class="join-server">
@@ -78,6 +84,29 @@
         <button id="quickUnlockButton" class="secondary-button wide-button quick-unlock-button" type="button" hidden>使用设备验证解锁</button>
       </section>
 
+      <section id="portableView" class="view" hidden>
+        <div class="section-copy">
+          <h2>临时使用</h2>
+          <p>仅在当前会话解锁和填充，不在这台电脑保存保险库。</p>
+        </div>
+        <div class="kind-switch portable-source" role="group" aria-label="账号来源">
+          <label><input type="radio" name="portableSource" value="file" checked><span>密码文件</span></label>
+          <label><input type="radio" name="portableSource" value="server"><span>自建服务器</span></label>
+        </div>
+        <form id="ephemeralForm" class="stack-form">
+          <label>加密密码文件<input id="ephemeralFile" type="file" accept="application/json,.json" required /></label>
+          <label>主密码<input id="ephemeralPassword" type="password" autocomplete="off" required /></label>
+          <button class="primary-button" type="submit">临时解锁</button>
+        </form>
+        <form id="portableRemoteForm" class="stack-form" hidden>
+          <label>HTTPS 服务地址<input id="portableRemoteUrl" type="url" placeholder="https://vault.example.com" required /></label>
+          <label>设备令牌<input id="portableRemoteToken" type="password" autocomplete="off" required /></label>
+          <label>主密码<input id="portableRemotePassword" type="password" autocomplete="off" required /></label>
+          <button class="primary-button" type="submit">临时取回并解锁</button>
+        </form>
+        <p class="hint">5 分钟无操作后锁定。离开前请锁定、关闭浏览器，并清理下载的密码文件。</p>
+      </section>
+
       <section id="recoveryTools" class="view" hidden>
         <div class="split-line"><span>备份与恢复</span></div>
         <details>
@@ -86,26 +115,16 @@
             <label>加密恢复文件<input id="recoveryFile" type="file" accept="application/json,.json" required /></label>
             <label id="recoveryPrivateKeyLabel" hidden>恢复私钥文件<input id="recoveryPrivateKeyFile" type="file" accept="application/json,.json" /></label>
             <label id="recoveryPasswordLabel">旧备份的恢复密码<input id="recoveryPassword" type="password" autocomplete="off" required placeholder="旧版备份使用" /></label>
-            <label>新的主密码<input id="newMasterPassword" type="password" autocomplete="new-password" minlength="16" required placeholder="至少 16 个字符" /></label>
-            <label>确认新主密码<input id="newMasterConfirm" type="password" autocomplete="new-password" minlength="16" required placeholder="再次输入新主密码" /></label>
+            <label>新的主密码<input id="newMasterPassword" type="password" autocomplete="new-password" minlength="12" required placeholder="至少 12 个字符" /></label>
+            <label>确认新主密码<input id="newMasterConfirm" type="password" autocomplete="new-password" minlength="12" required placeholder="再次输入新主密码" /></label>
             <button class="secondary-button wide-button" type="submit">恢复并设置新主密码</button>
           </form>
-        </details>
-        <details>
-          <summary>临时使用加密备份</summary>
-        <form id="ephemeralForm" class="stack-form">
-          <label>加密备份文件<input id="ephemeralFile" type="file" accept="application/json,.json" required /></label>
-          <label id="ephemeralPrivateKeyLabel" hidden>恢复私钥文件<input id="ephemeralPrivateKeyFile" type="file" accept="application/json,.json" /></label>
-          <label id="ephemeralPasswordLabel">备份密码<input id="ephemeralPassword" type="password" autocomplete="off" required placeholder="旧版备份或密码文件的密码" /></label>
-          <button class="secondary-button wide-button" type="submit">以便携模式打开</button>
-        </form>
-        <p class="hint">只在当前会话使用，不保存到此设备。锁定或关闭浏览器后会清除内存；设备若被植入键盘记录或恶意软件，仍不适合输入重要密码。</p>
         </details>
         <button id="resetVaultButton" class="danger-button" type="button">清空保险库并重新开始</button>
       </section>
 
       <section id="unlockedView" class="view" hidden>
-        <div id="sessionHint" class="session-hint" hidden>便携模式：只在内存中运行，不会保存到此设备</div>
+        <div id="sessionHint" class="session-hint" hidden>临时模式：5 分钟无操作后锁定；账号更改不会保存或同步</div>
         <section id="firstRunGuide" class="first-run-guide" aria-label="首次使用指导" hidden>
           <div class="first-run-heading"><strong id="guideProgress"></strong><button id="guideSkip" class="text-button" type="button">跳过</button></div>
           <h2 id="guideTitle"></h2>
@@ -237,7 +256,7 @@
           </section>
         </section>
         <section id="syncPane" class="tab-pane" role="tabpanel" aria-labelledby="syncButton" hidden>
-          <div id="syncUnavailable" class="hint" hidden>便携模式不连接服务器。</div>
+          <div id="syncUnavailable" class="hint" hidden>临时模式不会保存或同步账号更改。</div>
           <div id="syncSetup">
             <p id="syncLocalStatus" class="hint">正在检查本机服务…</p>
             <button id="syncConnectLocal" class="primary-button wide-button" type="button">连接本机服务</button>

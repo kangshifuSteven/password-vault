@@ -97,6 +97,12 @@ try {
   assert.equal((await fetch(`${url}/v1/vault`, { headers: { Authorization: "Bearer " + "0".repeat(64) } })).status, 401);
   const a = await client();
   const b = await client();
+  const minimumClient = await client();
+  await assert.rejects(() => minimumClient({ type: "setup", password: "elevenchars" }), /至少需要 12/);
+  await minimumClient({ type: "setup", password: "twelve chars" });
+  assert.equal((await minimumClient({ type: "getState" })).mode, "unlocked");
+  assert.equal(minimumClient.crypto.siteUrl("example.com"), "https://example.com/");
+  assert.equal(minimumClient.crypto.siteUrl(""), "");
   await a.localStorage.set({ localSyncUrl: url });
   for (const address of ["http://example.com", "https://user:pass@example.com", "https://example.com/path"]) {
     await assert.rejects(() => a({ type: "configureSync", url: address, token: "0".repeat(64) }));
@@ -226,6 +232,19 @@ try {
     body: JSON.stringify({ expectedRevision: 0, record: (await a({ type: "exportVault" })).record }) });
   assert.equal(stale.status, 409);
   assert(revision >= 5);
+  const portableRemote = await client();
+  assert.equal((await portableRemote({ type: "openPortableRemote", url, token,
+    password })).ephemeral, true);
+  assert((await portableRemote({ type: "list" })).entries.length > 0);
+  assert.deepEqual(await portableRemote.localStorage.get(null), {});
+  await assert.rejects(() => portableRemote({ type: "saveEntry", entry: {
+    name: "Do not save", site: "portable.example", username: "test", password: "secret"
+  } }), /临时模式仅供查看和填充/);
+  assert.deepEqual(await portableRemote.localStorage.get(null), {});
+  await portableRemote({ type: "lock" });
+  await assert.rejects(() => portableRemote({ type: "list" }), /LOCKED/);
+  await assert.rejects(() => portableRemote({ type: "openPortableRemote",
+    url: "http://example.com", token, password }), /HTTPS/);
   const c = await client();
   await c({ type: "bootstrapSync", url, token, password });
   const recovery = await c({ type: "exportRecovery" });
@@ -239,8 +258,9 @@ try {
   const portable = await client();
   await portable({ type: "importVault", record: recovery.record, privateKey: recovery.privateKey });
   assert((await portable({ type: "list" })).entries.length > 0);
-  await portable({ type: "saveEntry", entry: { name: "portable", site: "portable.example",
-    username: "test", password: "portable-secret" } });
+  await assert.rejects(() => portable({ type: "saveEntry", entry: { name: "portable", site: "portable.example",
+    username: "test", password: "portable-secret" } }), /临时模式仅供查看和填充/);
+  assert.deepEqual(await portable.localStorage.get(null), {});
   assert.equal((await portable({ type: "exportVault" })).record.version, 2);
   await c({ type: "restoreRecovery", record: recovery.record, privateKey: recovery.privateKey,
     newPassword: "new master password after recovery" });

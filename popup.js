@@ -6,6 +6,8 @@ let currentEntries = [];
 let editingId = null;
 let pendingImport = null;
 let currentMode = null;
+let accessMode = "local";
+let currentEphemeral = false;
 let activeTab = "accounts";
 let quickUnlockState = null;
 let auditOpen = false;
@@ -103,6 +105,18 @@ function setTab(tab) {
   }
 }
 
+function setAccessMode(mode) {
+  accessMode = mode === "portable" ? "portable" : "local";
+  const awaitingUnlock = currentMode === "setup" || currentMode === "locked";
+  $("accessModeSwitch").hidden = !awaitingUnlock;
+  $("localModeButton").setAttribute("aria-pressed", String(accessMode === "local"));
+  $("portableModeButton").setAttribute("aria-pressed", String(accessMode === "portable"));
+  $("setupView").hidden = currentMode !== "setup" || accessMode !== "local";
+  $("lockedView").hidden = currentMode !== "locked" || accessMode !== "local";
+  $("recoveryTools").hidden = !awaitingUnlock || accessMode !== "local";
+  $("portableView").hidden = !awaitingUnlock || accessMode !== "portable";
+}
+
 function setView(mode, ephemeral = false) {
   const wasUnlocked = currentMode === "unlocked";
   if (mode !== "unlocked" && currentMode === "unlocked") {
@@ -122,13 +136,16 @@ function setView(mode, ephemeral = false) {
     $("syncToken").value = "";
   }
   currentMode = mode;
+  currentEphemeral = mode === "unlocked" && ephemeral;
+  if (mode === "unlocked") accessMode = ephemeral ? "portable" : "local";
   $("updateView").hidden = mode !== "update";
-  $("setupView").hidden = mode !== "setup";
-  $("lockedView").hidden = mode !== "locked";
-  $("recoveryTools").hidden = mode !== "setup" && mode !== "locked";
+  setAccessMode(accessMode);
   $("resetVaultButton").hidden = mode !== "locked";
   $("unlockedView").hidden = mode !== "unlocked";
+  $("unlockedView").classList.toggle("portable", currentEphemeral);
   $("lockButton").hidden = mode !== "unlocked";
+  $("auditButton").hidden = currentEphemeral;
+  $("syncIndicator").hidden = currentEphemeral;
   const badge = $("statusBadge");
   badge.className = `status-badge ${mode}`;
   badge.textContent = mode === "setup" ? "未初始化" : mode === "locked" ? "已锁定" : mode === "update" ? "需重新加载" : "已解锁";
@@ -220,7 +237,8 @@ function renderEntries() {
       edit.textContent = "修改";
       edit.setAttribute("aria-label", `修改 ${entry.site} 的 ${entry.username}`);
       edit.addEventListener("click", () => editEntry(entry));
-      row.append(identity, edit);
+      row.append(identity);
+      if (!currentEphemeral) row.append(edit);
       list.appendChild(row);
     }
     group.append(heading, list);
@@ -250,6 +268,7 @@ function renderEntries() {
     main.append(name, meta);
     const actions = document.createElement("div");
     actions.className = "entry-actions";
+    actions.classList.toggle("portable", currentEphemeral);
     const copyUser = document.createElement("button");
     copyUser.type = "button";
     copyUser.textContent = "复制账号";
@@ -273,7 +292,21 @@ function renderEntries() {
       showNotice("账号已删除");
       await refresh();
     });
-    actions.append(copyUser, copyPass, edit, remove);
+    actions.append(copyUser, copyPass);
+    const siteUrl = entry.kind === "app" ? "" : PasswordCrypto.siteUrl(entry.site);
+    if (siteUrl) {
+      const open = document.createElement("button");
+      open.type = "button";
+      open.textContent = "打开网站";
+      open.title = "以 HTTPS 打开网站";
+      open.addEventListener("click", async () => {
+        try { await extensionApi.tabs.create({ url: siteUrl }); }
+        catch { showNotice("无法打开网站", "error"); }
+      });
+      actions.classList.add("has-site");
+      actions.append(open);
+    }
+    if (!currentEphemeral) actions.append(edit, remove);
     card.append(main, actions);
     list.appendChild(card);
   });
@@ -281,7 +314,7 @@ function renderEntries() {
 
 function renderPendingLogins() {
   const pending = pendingLogins[0];
-  $("pendingLoginPanel").hidden = !pending;
+  $("pendingLoginPanel").hidden = !pending || currentEphemeral;
   if (!pending) return;
   $("pendingCount").textContent = pendingLogins.length > 1 ? `${pendingLogins.length} 项` : "";
   $("pendingSite").textContent = pending.site;
@@ -456,7 +489,7 @@ async function refresh() {
       await renderSyncState();
     }
     const { importFlow } = await extensionApi.storage.session.get("importFlow");
-    if (importFlow) {
+    if (importFlow && !state.ephemeral) {
       $("importPanel").hidden = false;
       setTab("import");
     }
@@ -625,21 +658,35 @@ $("ephemeralForm").addEventListener("submit", async (event) => {
   if (!file) return showNotice("请选择加密备份文件", "error");
   try {
     const record = JSON.parse(await file.text());
-    const privateKeyFile = $("ephemeralPrivateKeyFile").files[0];
-    if (record.version === 2 && !privateKeyFile) return showNotice("请选择对应的恢复私钥文件", "error");
+    if (record.version === 2) return showNotice("临时使用请导入加密密码文件，不要在临时电脑使用恢复私钥", "error");
     const result = await send({ type: "importVault", record,
-      password: $("ephemeralPassword").value,
-      privateKey: privateKeyFile ? JSON.parse(await privateKeyFile.text()) : null });
-    if (result.error) return showNotice("备份密码或恢复私钥不正确，或文件已损坏", "error");
+      password: $("ephemeralPassword").value });
+    if (result.error) return showNotice(result.error, "error");
     $("ephemeralForm").reset();
     await refresh();
   } catch {
-    showNotice("无法读取加密备份文件", "error");
+    showNotice("无法读取加密密码文件", "error");
   }
 });
-$("ephemeralFile").addEventListener("change", () => updateRecoveryInput(
-  "ephemeralFile", "ephemeralPrivateKeyLabel", "ephemeralPasswordLabel",
-  "ephemeralPrivateKeyFile", "ephemeralPassword"));
+$("portableRemoteForm").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  showNotice();
+  const result = await send({ type: "openPortableRemote", url: $("portableRemoteUrl").value,
+    token: $("portableRemoteToken").value, password: $("portableRemotePassword").value });
+  if (showActionError(result)) return;
+  $("portableRemoteForm").reset();
+  await refresh();
+});
+for (const radio of document.querySelectorAll('input[name="portableSource"]')) {
+  radio.addEventListener("change", () => {
+    const remote = document.querySelector('input[name="portableSource"]:checked')?.value === "server";
+    $("ephemeralForm").hidden = remote;
+    $("portableRemoteForm").hidden = !remote;
+    showNotice();
+  });
+}
+$("localModeButton").addEventListener("click", () => { setAccessMode("local"); showNotice(); });
+$("portableModeButton").addEventListener("click", () => { setAccessMode("portable"); showNotice(); });
 $("recoveryFile").addEventListener("change", () => updateRecoveryInput(
   "recoveryFile", "recoveryPrivateKeyLabel", "recoveryPasswordLabel",
   "recoveryPrivateKeyFile", "recoveryPassword"));
