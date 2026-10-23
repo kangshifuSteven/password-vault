@@ -43,7 +43,7 @@ jobs:
             cp "$file" "$root/chrome-edge/$file"
             cp "$file" "$root/firefox/$file"
           done
-          cp -R server web i18n.js crypto.js sync.js NOTICE.md README.md CHANGELOG.md SECURITY.md LICENSE LUCIDE-LICENSE "$root/server-wsl/"
+          cp -R server web docs i18n.js crypto.js sync.js NOTICE.md README.md CHANGELOG.md SECURITY.md LICENSE LUCIDE-LICENSE "$root/server-wsl/"
           (cd "$root/chrome-edge" && zip -qr "../../password-vault-v${version}-chrome-edge.zip" .)
           (cd "$root/firefox" && zip -qr "../../password-vault-v${version}-firefox.zip" .)
           tar -czf "password-vault-v${version}-server-wsl.tar.gz" -C "$root/server-wsl" .
