@@ -18,7 +18,7 @@ Password Vault is a local-first, open-source password manager with a browser ext
 
 | 桌面扩展 | 网页保险库 |
 | :---: | :---: |
-| ![密码匣桌面扩展账号列表](docs/screenshots/extension-popup.png) | ![密码匣网页保险库](docs/screenshots/web-vault.png) |
+| <img src="docs/screenshots/extension-popup.png" alt="密码匣桌面扩展账号列表" width="360"> | <img src="docs/screenshots/web-vault.png" alt="密码匣网页保险库" width="360"> |
 
 [查看手机账号页](docs/screenshots/mobile-vault.png) · [查看手机解锁页](docs/screenshots/mobile-login.png)
 
