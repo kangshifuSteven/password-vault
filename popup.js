@@ -8,6 +8,8 @@ let pendingImport = null;
 let currentMode = null;
 let accessMode = "local";
 let currentEphemeral = false;
+let currentTemporarySource = null;
+let selectedPortableSource = null;
 let activeTab = "accounts";
 let quickUnlockState = null;
 let auditOpen = false;
@@ -108,17 +110,38 @@ function setTab(tab) {
 function setAccessMode(mode) {
   accessMode = mode === "portable" ? "portable" : "local";
   const awaitingUnlock = currentMode === "setup" || currentMode === "locked";
-  $("accessModeSwitch").hidden = !["setup", "locked", "unlocked"].includes(currentMode);
-  $("localModeButton").setAttribute("aria-pressed", String(accessMode === "local"));
-  $("portableModeButton").setAttribute("aria-pressed", String(accessMode === "portable"));
+  $("temporaryEntry").hidden = !["setup", "locked", "unlocked"].includes(currentMode);
+  const entryLabel = accessMode === "local" ? "临时使用" : currentEphemeral
+    ? currentTemporarySource === "local-temporary" ? "返回日常使用" : "结束临时使用"
+    : selectedPortableSource ? "返回选择来源" : "返回";
+  $("temporaryEntryLabel").textContent = PasswordI18n.t(entryLabel);
+  $("temporaryEntry").classList.toggle("back", accessMode === "portable");
+  $("temporaryEntryArrow").textContent = accessMode === "local" ? "›" : "‹";
   $("setupView").hidden = currentMode !== "setup" || accessMode !== "local";
   $("lockedView").hidden = currentMode !== "locked" || accessMode !== "local";
   $("recoveryTools").hidden = !awaitingUnlock || accessMode !== "local";
-  $("portableView").hidden = !awaitingUnlock || accessMode !== "portable";
+  $("portableView").hidden = accessMode !== "portable" || currentEphemeral;
+  $("useCurrentVault").hidden = currentMode !== "unlocked" || currentEphemeral;
+  $("temporaryReadOnly").hidden = !currentEphemeral;
+  $("unlockedView").hidden = currentMode !== "unlocked" || (accessMode === "portable" && !currentEphemeral);
 }
 
-function setView(mode, ephemeral = false) {
+function showPortableSource(source) {
+  selectedPortableSource = source;
+  $("portableSourcePicker").hidden = Boolean(source);
+  $("ephemeralForm").hidden = source !== "file";
+  $("portableRemoteForm").hidden = source !== "server";
+  $("portableFileHint").hidden = source !== "file";
+  $("portableServerHint").hidden = source !== "server";
+  $("portableHeading").textContent = PasswordI18n.t(source === "file" ? "打开密码文件"
+    : source === "server" ? "连接自己的服务器" : "选择账号来源");
+  $("portableDescription").hidden = Boolean(source);
+  setAccessMode(accessMode);
+}
+
+function setView(mode, ephemeral = false, source = null) {
   const wasUnlocked = currentMode === "unlocked";
+  const wasEphemeral = currentEphemeral;
   if (mode !== "unlocked" && currentMode === "unlocked") {
     currentEntries = [];
     pendingLogins = [];
@@ -137,11 +160,11 @@ function setView(mode, ephemeral = false) {
   }
   currentMode = mode;
   currentEphemeral = mode === "unlocked" && ephemeral;
+  currentTemporarySource = currentEphemeral ? source : null;
   if (mode === "unlocked") accessMode = ephemeral ? "portable" : "local";
   $("updateView").hidden = mode !== "update";
   setAccessMode(accessMode);
   $("resetVaultButton").hidden = mode !== "locked";
-  $("unlockedView").hidden = mode !== "unlocked";
   $("unlockedView").classList.toggle("portable", currentEphemeral);
   $("lockButton").hidden = mode !== "unlocked";
   $("auditButton").hidden = currentEphemeral;
@@ -149,12 +172,14 @@ function setView(mode, ephemeral = false) {
   const badge = $("statusBadge");
   badge.className = `status-badge ${mode}`;
   badge.textContent = mode === "setup" ? "未初始化" : mode === "locked" ? "已锁定" : mode === "update" ? "需重新加载" : "已解锁";
-  $("sessionHint").hidden = mode !== "unlocked" || !ephemeral;
   $("quickUnlockButton").hidden = mode !== "locked" || !quickUnlockState?.quickUnlock;
   $("quickUnlockPanel").hidden = mode !== "unlocked" || ephemeral;
   $("enableQuickUnlock").hidden = Boolean(quickUnlockState?.quickUnlock);
   $("disableQuickUnlock").hidden = !quickUnlockState?.quickUnlock;
-  if (mode === "unlocked" && !wasUnlocked) setTab("accounts");
+  if (mode === "unlocked" && (!wasUnlocked || wasEphemeral !== currentEphemeral)) {
+    auditOpen = false;
+    setTab("accounts");
+  }
 }
 
 function resetEntryForm() {
@@ -463,7 +488,7 @@ async function refresh() {
     return;
   }
   quickUnlockState = state;
-  setView(state.mode, state.ephemeral);
+  setView(state.mode, state.ephemeral, state.source);
   if (state.mode === "unlocked") {
     const { guidePending } = await extensionApi.storage.local.get("guidePending");
     $("firstRunGuide").hidden = state.ephemeral || !guidePending;
@@ -677,29 +702,41 @@ $("portableRemoteForm").addEventListener("submit", async (event) => {
   $("portableRemoteForm").reset();
   await refresh();
 });
-for (const radio of document.querySelectorAll('input[name="portableSource"]')) {
-  radio.addEventListener("change", () => {
-    const remote = document.querySelector('input[name="portableSource"]:checked')?.value === "server";
-    $("ephemeralForm").hidden = remote;
-    $("portableRemoteForm").hidden = !remote;
-    showNotice();
-  });
-}
+$("fileSourceButton").addEventListener("click", () => showPortableSource("file"));
+$("serverSourceButton").addEventListener("click", () => showPortableSource("server"));
 async function chooseAccessMode(mode) {
+  if (mode === "local" && accessMode === "portable" && selectedPortableSource && !currentEphemeral) {
+    showPortableSource(null);
+    return;
+  }
   if (mode === accessMode) return;
-  if (currentMode === "unlocked") {
-    const result = await send({ type: "lock" });
-    if (showActionError(result)) return;
-    accessMode = mode;
+  if (mode === "local" && currentEphemeral) {
+    const source = currentTemporarySource;
+    const result = await send({ type: "setTemporaryMode", enabled: false });
+    if (showActionError(result)) return setAccessMode(accessMode);
+    accessMode = "local";
     await refresh();
+    if (result.mode !== "unlocked" && source === "file") {
+      return showNotice("临时会话已清除；下载的密码文件仍在本机", "info");
+    }
   } else {
     setAccessMode(mode);
+    if (mode === "portable") showPortableSource(null);
   }
   showNotice();
 }
 
-$("localModeButton").addEventListener("click", () => chooseAccessMode("local"));
-$("portableModeButton").addEventListener("click", () => chooseAccessMode("portable"));
+$("temporaryEntry").addEventListener("click", () =>
+  chooseAccessMode(accessMode === "local" ? "portable" : "local"));
+$("useCurrentVault").addEventListener("click", async () => {
+  const result = await send({ type: "setTemporaryMode", enabled: true });
+  if (showActionError(result)) return;
+  await refresh();
+});
+document.addEventListener("password-vault-language-change", () => {
+  setAccessMode(accessMode);
+  showPortableSource(selectedPortableSource);
+});
 $("recoveryFile").addEventListener("change", () => updateRecoveryInput(
   "recoveryFile", "recoveryPrivateKeyLabel", "recoveryPasswordLabel",
   "recoveryPrivateKeyFile", "recoveryPassword"));
@@ -778,9 +815,12 @@ $("autoLockMinutes").addEventListener("change", async () => {
 });
 
 $("lockButton").addEventListener("click", async () => {
-  await send({ type: "lock" });
+  const source = currentTemporarySource;
+  const result = await send({ type: "lock" });
+  if (showActionError(result)) return;
   resetEntryForm();
   await refresh();
+  if (source === "file") showNotice("临时会话已清除；下载的密码文件仍在本机");
 });
 
 $("accountsButton").addEventListener("click", () => setTab("accounts"));

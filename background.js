@@ -12,7 +12,7 @@ const ACTIVE_VAULT = "activeVault";
 const SYNC_STATUS = "syncStatus";
 const PENDING_LOGIN_PREFIX = "pendingLogin:";
 const PENDING_LOGIN_LIFETIME = 10 * 60 * 1000;
-let session = { key: null, vault: null, record: null, ephemeral: false, lastActivity: 0, id: null };
+let session = { key: null, vault: null, record: null, ephemeral: false, source: "local", lastActivity: 0, id: null };
 let sessionReady;
 let requestQueue = Promise.resolve();
 
@@ -37,7 +37,7 @@ function newId() {
 }
 
 async function clearSession() {
-  session = { key: null, vault: null, record: null, ephemeral: false, lastActivity: 0, id: null };
+  session = { key: null, vault: null, record: null, ephemeral: false, source: "local", lastActivity: 0, id: null };
   const stored = await extensionApi.storage.session.get(null);
   const transient = Object.keys(stored).filter((key) => (
     key.startsWith(PENDING_LOGIN_PREFIX) || key.startsWith("suggestion:")
@@ -72,6 +72,7 @@ async function saveSession() {
       record: session.ephemeral ? session.record : null,
       salt: session.record.salt,
       ephemeral: session.ephemeral,
+      source: session.source,
       lastActivity: session.lastActivity,
       id: session.id
     }
@@ -99,7 +100,8 @@ async function restoreSession() {
     const key = await PasswordCrypto.importKey(saved.key);
     const vault = await PasswordCrypto.decryptWithKey(key, record);
     if (!vault || !Array.isArray(vault.entries)) throw new Error("保险库格式无效");
-    session = { key, vault, record, ephemeral: Boolean(saved.ephemeral), lastActivity: saved.lastActivity,
+    session = { key, vault, record, ephemeral: Boolean(saved.ephemeral),
+      source: saved.source || (saved.ephemeral ? "file" : "local"), lastActivity: saved.lastActivity,
       id: saved.id || newId() };
     await extensionApi.alarms.create(AUTO_LOCK_ALARM, { when: session.lastActivity + await autoLockDuration() });
     await scheduleAutoSync(1000);
@@ -108,12 +110,13 @@ async function restoreSession() {
   }
 }
 
-async function openSession(opened, record, ephemeral = false) {
+async function openSession(opened, record, ephemeral = false, source = ephemeral ? "file" : "local") {
   session = {
     key: opened.key,
     vault: opened.value,
     record,
     ephemeral,
+    source,
     lastActivity: Date.now(),
     id: newId()
   };
@@ -610,6 +613,7 @@ async function handleMessage(message, sender) {
       return {
         mode: record || session.ephemeral ? (session.vault ? "unlocked" : "locked") : "setup",
         ephemeral: Boolean(session.ephemeral && session.vault),
+        source: session.vault ? session.source : null,
         quickUnlock: Boolean(record && quick?.salt === record.salt),
         quickCredentialId: record && quick?.salt === record.salt ? quick.credentialId : null,
         quickPrfSalt: record && quick?.salt === record.salt ? quick.prfSalt : null,
@@ -737,8 +741,34 @@ async function handleMessage(message, sender) {
       if (opened.value?.version !== 1 || !Array.isArray(opened.value.entries)) {
         throw new Error("服务器保险库格式无效");
       }
-      await openSession(opened, remote.record, true);
+      await openSession(opened, remote.record, true, "server");
       return { mode: "unlocked", ephemeral: true, count: opened.value.entries.length };
+    }
+    case "setTemporaryMode": {
+      requireUnlocked();
+      if (Boolean(message.enabled) === session.ephemeral) {
+        return { mode: "unlocked", ephemeral: session.ephemeral, source: session.source };
+      }
+      if (message.enabled) {
+        session.ephemeral = true;
+        session.source = "local-temporary";
+        await extensionApi.alarms.clear(AUTO_SYNC_ALARM);
+        await markActivity();
+        return { mode: "unlocked", ephemeral: true, source: session.source };
+      }
+      if (session.source === "local-temporary") {
+        const record = await storedRecord();
+        if (record && record.salt === session.record.salt) {
+          session.record = record;
+          session.ephemeral = false;
+          session.source = "local";
+          await markActivity();
+          await scheduleAutoSync(1000);
+          return { mode: "unlocked", ephemeral: false, source: session.source };
+        }
+      }
+      await clearSession();
+      return { mode: (await storedRecord()) ? "locked" : "setup", ephemeral: false };
     }
     case "exportVault":
       requireUnlocked();

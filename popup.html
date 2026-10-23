@@ -11,7 +11,6 @@
       <header class="app-header">
         <div>
           <h1>密码匣</h1>
-          <p>独立保险库</p>
         </div>
         <div class="header-status"><span id="statusBadge" class="status-badge">检查中</span><label class="language-control"><span class="sr-only">选择语言</span><select id="languageSelect" aria-label="选择语言"><option value="zh-CN">中文</option><option value="en">English</option></select></label><button id="guideButton" class="help-button" type="button" aria-label="使用指导" title="使用指导">?</button><button id="lockButton" class="quiet-button" type="button" hidden>锁定</button></div>
       </header>
@@ -23,8 +22,8 @@
           <dt>添加 / 保存</dt><dd>保存网站或 App 账号；连接服务器后会自动同步账号更改。</dd>
           <dt>导入</dt><dd>选择浏览器导出的 CSV，核对新增与重复账号后确认。原浏览器密码不会自动删除。</dd>
           <dt>恢复备份</dt><dd>备份文件和恢复私钥分别保存。忘记主密码时，用这两个文件重新设置。</dd>
-          <dt>导出密码文件</dt><dd>用于在服务器网页导入账号。文件已加密，打开仍需当前主密码，不能用它重设忘记的主密码。</dd>
-          <dt>临时使用</dt><dd>切换到临时模式，从加密密码文件或自己的 HTTPS 服务取回账号；锁定后不留本地保险库。</dd>
+          <dt>导出密码文件</dt><dd>用于迁移账号或在服务器网页导入。再次打开仍需主密码；忘记主密码时请使用恢复备份。</dd>
+          <dt>临时使用</dt><dd>从入口选择当前账号、密码文件或自己的服务器。临时查看只读，关闭浏览器后自动结束。</dd>
           <dt>同步</dt><dd>连接自己的服务器，上传本机改动并取回最新账号。两边都有账号时先预览合并。</dd>
           <dt>锁定</dt><dd>清除当前解锁会话；下次使用需重新解锁。</dd>
         </dl>
@@ -38,10 +37,7 @@
         <button id="reloadButton" class="primary-button wide-button" type="button">重新加载扩展</button>
       </section>
 
-      <div id="accessModeSwitch" class="access-mode-switch" role="group" aria-label="使用方式" hidden>
-        <button id="localModeButton" type="button" aria-pressed="true">本机使用</button>
-        <button id="portableModeButton" type="button" aria-pressed="false">临时使用</button>
-      </div>
+      <button id="temporaryEntry" class="temporary-entry" type="button" hidden><span id="temporaryEntryLabel">临时使用</span><span id="temporaryEntryArrow" aria-hidden="true">›</span></button>
 
       <section id="setupView" class="view" hidden>
         <div class="section-copy">
@@ -86,25 +82,27 @@
 
       <section id="portableView" class="view" hidden>
         <div class="section-copy">
-          <h2>临时使用</h2>
-          <p>仅在当前会话解锁和填充，不在这台电脑保存保险库。</p>
+          <h2 id="portableHeading">选择账号来源</h2>
+          <p id="portableDescription">只读查看，不保存账号更改。</p>
         </div>
-        <div class="kind-switch portable-source" role="group" aria-label="账号来源">
-          <label><input type="radio" name="portableSource" value="file" checked><span>密码文件</span></label>
-          <label><input type="radio" name="portableSource" value="server"><span>自建服务器</span></label>
+        <div id="portableSourcePicker" class="portable-source-picker">
+          <button id="useCurrentVault" class="source-entry" type="button" hidden><strong>使用当前账号</strong><span>直接查看，返回后继续正常使用</span></button>
+          <button id="fileSourceButton" class="source-entry" type="button"><strong>密码文件</strong><span>选择已有的加密密码文件</span></button>
+          <button id="serverSourceButton" class="source-entry" type="button"><strong>自己的服务器</strong><span>从 HTTPS 服务取回账号</span></button>
         </div>
-        <form id="ephemeralForm" class="stack-form">
+        <form id="ephemeralForm" class="stack-form" hidden>
           <label>加密密码文件<input id="ephemeralFile" type="file" accept="application/json,.json" required /></label>
           <label>主密码<input id="ephemeralPassword" type="password" autocomplete="off" required /></label>
           <button class="primary-button" type="submit">临时解锁</button>
         </form>
+        <p id="portableFileHint" class="hint" hidden>关闭浏览器会清除会话，所选文件不会被删除。</p>
         <form id="portableRemoteForm" class="stack-form" hidden>
           <label>HTTPS 服务地址<input id="portableRemoteUrl" type="url" placeholder="https://vault.example.com" required /></label>
           <label>设备令牌<input id="portableRemoteToken" type="password" autocomplete="off" required /></label>
           <label>主密码<input id="portableRemotePassword" type="password" autocomplete="off" required /></label>
           <button class="primary-button" type="submit">临时取回并解锁</button>
         </form>
-        <p class="hint">5 分钟无操作后锁定。离开前请锁定、关闭浏览器，并清理下载的密码文件。</p>
+        <p id="portableServerHint" class="hint" hidden>不下载文件；关闭浏览器后会话自动结束。</p>
       </section>
 
       <section id="recoveryTools" class="view" hidden>
@@ -124,7 +122,7 @@
       </section>
 
       <section id="unlockedView" class="view" hidden>
-        <div id="sessionHint" class="session-hint" hidden>临时模式：5 分钟无操作后锁定；账号更改不会保存或同步</div>
+        <p id="temporaryReadOnly" class="temporary-readonly" hidden>只读查看 · 不会保存或同步更改</p>
         <section id="firstRunGuide" class="first-run-guide" aria-label="首次使用指导" hidden>
           <div class="first-run-heading"><strong id="guideProgress"></strong><button id="guideSkip" class="text-button" type="button">跳过</button></div>
           <h2 id="guideTitle"></h2>
